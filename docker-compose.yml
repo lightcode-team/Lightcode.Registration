@@ -1,0 +1,39 @@
+services:
+  mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    # Remova a linha ports em produção se o Mongo só for acessível pela rede interna do compose
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: LightcodeRegistration
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      Mongo__ConnectionString: mongodb://mongo:27017
+      Mongo__MasterDatabaseName: SaasMasterDb
+      # Gere um segredo forte na VPS; mínimo 32 caracteres
+      Jwt__SigningKey: "${JWT_SIGNING_KEY:-CHANGE_ME_USE_ENV_IN_PROD_MIN_32_CHARS!!}"
+      Master__ProvisioningApiKey: "${MASTER_PROVISIONING_KEY:-}"
+
+volumes:
+  mongo_data:

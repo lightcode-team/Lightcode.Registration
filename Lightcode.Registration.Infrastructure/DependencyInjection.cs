@@ -1,0 +1,39 @@
+using Lightcode.Registration.Application.Abstractions;
+using Lightcode.Registration.Application.Services;
+using Lightcode.Registration.Infrastructure.Hosting;
+using Lightcode.Registration.Infrastructure.Persistence.Mongo;
+using Lightcode.Registration.Infrastructure.Security;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Lightcode.Registration.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+    {
+        services.AddSingleton<IRuntimeEnvironment, AspNetCoreRuntimeEnvironment>();
+
+        services.AddScoped<ITenantLookup, MongoTenantLookup>();
+        services.AddScoped<IAccountJsonSchemaRepository, MongoAccountJsonSchemaRepository>();
+        services.AddScoped<IJsonSchemaValidationService, JsonSchemaDocumentValidator>();
+        services.AddScoped<IJsonSchemaToMongoValidatorMapper, JsonSchemaDraftToMongoValidatorMapper>();
+        services.AddScoped<IUsersCollectionSchemaApplier, MongoUsersCollectionSchemaApplier>();
+        services.AddScoped<IUserAccountWriter, UserAccountMongoWriter>();
+        services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
+
+        services.AddScoped<ITenantProvisioner, MongoTenantProvisioner>();
+        services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
+        services.AddScoped(typeof(MongoRepository<>));
+
+        services.AddScoped<IWeatherForecastRepository, WeatherForecastRepositoryAdapter>();
+        services.AddScoped<IAccessTokenIssuer, JwtAccessTokenIssuer>();
+
+        services.AddScoped<IAuthenticationAppService, AuthenticationAppService>();
+        services.AddScoped<ITenantOnboardingAppService, TenantOnboardingAppService>();
+        services.AddScoped<IWeatherForecastAppService, WeatherForecastAppService>();
+        services.AddScoped<IAccountJsonSchemaAppService, AccountJsonSchemaAppService>();
+        services.AddScoped<IAccountRegistrationAppService, AccountRegistrationAppService>();
+
+        return services;
+    }
+}

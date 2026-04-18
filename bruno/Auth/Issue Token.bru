@@ -1,0 +1,39 @@
+meta {
+  name: Issue Token
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/auth/token
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "userId": "{{userId}}",
+    "tenantId": "{{tenantId}}"
+  }
+}
+
+docs {
+  # Emitir JWT
+
+  **POST** `/api/auth/token`
+
+  Corpo JSON com `userId` e `tenantId` (tenant ativo no master).
+
+  ## Resposta (Data)
+  - `access_token` — colar no ambiente LOCAL na variável `jwt`
+  - `token_type` — `Bearer`
+  - `expires_in` — segundos
+
+  ## Erros comuns
+  - `400` — campos em falta
+  - `401` — tenant inexistente ou inativo
+}

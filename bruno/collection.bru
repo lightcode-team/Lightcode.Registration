@@ -1,0 +1,22 @@
+meta {
+  name: Lightcode.Registration
+  type: collection
+}
+
+docs {
+  # Lightcode.Registration API
+
+  API multi-tenant com MongoDB, JWT e validação de contas via JSON Schema.
+
+  ## Fluxo sugerido (LOCAL)
+  1. **Create Tenant** — cria tenant (e schema default de conta).
+  2. **Issue Token** — obtém `jwt` (preencher `tenantId` no ambiente).
+  3. Pedidos com **Bearer** — usar variável `jwt` no ambiente LOCAL.
+  4. **Register Account** — registo público (sem token), corpo conforme schema default.
+
+  ## Envelope de resposta
+  Todas as respostas seguem: `Erro`, `Erros`, `StatusCode`, `Data`.
+
+  ## Ambiente
+  Selecione **LOCAL** em *Environments* no Bruno e ajuste as variáveis após o primeiro token/tenant.
+}

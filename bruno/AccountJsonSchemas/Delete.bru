@@ -1,0 +1,28 @@
+meta {
+  name: Delete Account JSON Schema
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/api/account-json-schemas/{{schemaId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+docs {
+  # Eliminar JSON Schema
+
+  **DELETE** `/api/account-json-schemas/{id}`
+
+  Não é permitido eliminar o schema marcado como **default**.
+
+  ## Resposta
+  - `204` — sucesso sem corpo útil no envelope (Data pode ser null)
+  - `400` — tentativa de apagar o default
+  - `404` — não encontrado
+}

@@ -1,0 +1,6 @@
+@Lightcode.Registration_HostAddress = http://localhost:5012
+
+GET {{Lightcode.Registration_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

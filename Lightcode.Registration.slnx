@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Lightcode.Registration.Domain/Lightcode.Registration.Domain.csproj" />
+  <Project Path="Lightcode.Registration.Application/Lightcode.Registration.Application.csproj" />
+  <Project Path="Lightcode.Registration.Infrastructure/Lightcode.Registration.Infrastructure.csproj" />
+  <Project Path="Lightcode.Registration/Lightcode.Registration.csproj" />
+</Solution>

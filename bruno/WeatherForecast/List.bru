@@ -1,0 +1,26 @@
+meta {
+  name: List Weather Forecasts
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/WeatherForecast
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+docs {
+  # Listar previsões (tenant)
+
+  **GET** `/api/WeatherForecast`
+
+  Requer JWT com claim `tenantId` (policy **HasTenant**).
+
+  ## Resposta (Data)
+  Lista de documentos `WeatherForecast` no database do tenant.
+}

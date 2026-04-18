@@ -1,0 +1,26 @@
+meta {
+  name: Get Account JSON Schema by Id
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/account-json-schemas/{{schemaId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+docs {
+  # Obter schema por Id
+
+  **GET** `/api/account-json-schemas/{id}`
+
+  Define `schemaId` no ambiente LOCAL (copiar da listagem).
+
+  ## Erros
+  - `404` — schema não encontrado neste tenant
+}

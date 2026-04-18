@@ -1,0 +1,26 @@
+meta {
+  name: List Account JSON Schemas
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/account-json-schemas
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+docs {
+  # Listar JSON Schemas de conta
+
+  **GET** `/api/account-json-schemas`
+
+  Lista todos os schemas do **tenant do token** (claim `tenantId`).
+
+  ## Resposta (Data)
+  Array de schemas com `id`, `key`, `schemaJson`, `isDefault`, etc.
+}

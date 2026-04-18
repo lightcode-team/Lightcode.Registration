@@ -1,0 +1,41 @@
+meta {
+  name: Create Account JSON Schema
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/account-json-schemas
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "key": "custom-v1",
+    "displayName": "Schema personalizado",
+    "schemaJson": "{\n  \"type\": \"object\",\n  \"required\": [\"email\", \"password\"],\n  \"additionalProperties\": true,\n  \"properties\": {\n    \"email\": { \"type\": \"string\", \"format\": \"email\" },\n    \"password\": { \"type\": \"string\", \"minLength\": 8 }\n  }\n}",
+    "isDefault": false
+  }
+}
+
+docs {
+  # Criar JSON Schema de conta
+
+  **POST** `/api/account-json-schemas`
+
+  - `key` — única por tenant
+  - `schemaJson` — texto JSON Schema (validado com JsonSchema.Net)
+  - `isDefault` — se `true`, torna-se o default e atualiza o validador Mongo da coleção `Users`
+
+  ## Erros
+  - `409` — `key` duplicada
+}
