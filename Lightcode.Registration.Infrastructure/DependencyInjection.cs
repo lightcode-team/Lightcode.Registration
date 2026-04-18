@@ -19,6 +19,7 @@ public static class DependencyInjection
         services.AddScoped<IJsonSchemaToMongoValidatorMapper, JsonSchemaDraftToMongoValidatorMapper>();
         services.AddScoped<IUsersCollectionSchemaApplier, MongoUsersCollectionSchemaApplier>();
         services.AddScoped<IUserAccountWriter, UserAccountMongoWriter>();
+        services.AddScoped<IUserCredentialValidator, UserCredentialValidator>();
         services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
 
         services.AddScoped<ITenantProvisioner, MongoTenantProvisioner>();
@@ -33,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<IWeatherForecastAppService, WeatherForecastAppService>();
         services.AddScoped<IAccountJsonSchemaAppService, AccountJsonSchemaAppService>();
         services.AddScoped<IAccountRegistrationAppService, AccountRegistrationAppService>();
+        services.AddScoped<IAccountUpdateAppService, AccountUpdateAppService>();
 
         return services;
     }

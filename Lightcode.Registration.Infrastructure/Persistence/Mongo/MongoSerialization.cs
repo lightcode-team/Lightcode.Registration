@@ -59,6 +59,8 @@ public static class MongoSerialization
             cm.AutoMap();
             cm.SetIgnoreExtraElements(true);
             cm.MapIdProperty(x => x.Id);
+            cm.MapProperty(x => x.SchemaJson).SetSerializer(new SchemaJsonBsonSerializer());
+            cm.MapProperty(x => x.ConfigJson).SetSerializer(new SchemaJsonBsonSerializer());
         });
     }
 }

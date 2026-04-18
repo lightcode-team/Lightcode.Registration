@@ -12,8 +12,11 @@ public class AccountJsonSchema
 
     public string? DisplayName { get; set; }
 
-    /// <summary>Texto JSON Schema (ex.: draft 2020-12) usado na validação da API.</summary>
+    /// <summary>JSON Schema (ex.: draft 2020-12) como texto na aplicação; no MongoDB é persistido como documento embutido.</summary>
     public string SchemaJson { get; set; } = default!;
+
+    /// <summary>Configuração opcional (ex.: expiração de cadastro) como JSON; no MongoDB é documento embutido.</summary>
+    public string? ConfigJson { get; set; }
 
     public bool IsDefault { get; set; }
 

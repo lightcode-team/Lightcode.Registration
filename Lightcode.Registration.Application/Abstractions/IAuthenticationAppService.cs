@@ -5,5 +5,9 @@ namespace Lightcode.Registration.Application.Abstractions;
 
 public interface IAuthenticationAppService
 {
-    Task<ServiceResult<IssueTokenResponse>> IssueTokenAsync(IssueTokenRequest request, CancellationToken cancellationToken = default);
+    /// <param name="tenantId">Tenant obtido do cabeçalho HTTP quando o pedido não traz JWT.</param>
+    Task<ServiceResult<IssueTokenResponse>> IssueTokenAsync(
+        IssueTokenRequest request,
+        string tenantId,
+        CancellationToken cancellationToken = default);
 }

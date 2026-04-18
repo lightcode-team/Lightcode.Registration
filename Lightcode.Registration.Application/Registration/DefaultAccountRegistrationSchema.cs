@@ -7,10 +7,11 @@ public static class DefaultAccountRegistrationSchema
         """
         {
           "type": "object",
-          "required": ["email", "password"],
+          "required": ["email", "username", "password"],
           "additionalProperties": true,
           "properties": {
             "email": { "type": "string", "format": "email" },
+            "username": { "type": "string", "minLength": 1 },
             "password": { "type": "string", "minLength": 8 }
           }
         }

@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Lightcode.Registration.Application.Contracts.JsonSchema;
 
 public sealed record AccountJsonSchemaDto(
@@ -5,7 +7,8 @@ public sealed record AccountJsonSchemaDto(
     string TenantId,
     string Key,
     string? DisplayName,
-    string SchemaJson,
+    JsonElement? Config,
+    JsonElement SchemaJson,
     bool IsDefault,
     DateTime CreatedAtUtc,
     DateTime UpdatedAtUtc);

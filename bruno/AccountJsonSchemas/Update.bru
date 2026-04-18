@@ -10,27 +10,46 @@ put {
   auth: bearer
 }
 
-auth:bearer {
-  token: {{jwt}}
-}
-
 headers {
   Content-Type: application/json
 }
 
+auth:bearer {
+  token: {{jwt}}
+}
+
 body:json {
   {
-    "displayName": "Schema atualizado"
+    "displayName": "Schema Atualizado",
+    "config": {
+      "Expiry": {
+        "expiryRegister": true,
+        "daysExpiry": 360
+      }
+    },
+    "schemaJson": {
+      "type": "object",
+      "required": ["email", "username", "password"],
+      "additionalProperties": true,
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "username": { "type": "string", "minLength": 1 },
+        "password": { "type": "string", "minLength": 8 },
+        "phone": { "type": "string", "minLength": 8 },
+        "document": { "type": "string", "minLength": 8 }
+      }
+    },
+    "isDefault": false
   }
 }
 
 docs {
   # Atualizar JSON Schema
-
+  
   **PUT** `/api/account-json-schemas/{id}`
-
-  Campos opcionais (envie só o que quiser alterar): `displayName`, `schemaJson`, `isDefault`.
-
+  
+  Campos opcionais (envie só o que quiser alterar): `displayName`, `config`, `schemaJson`, `isDefault`.
+  
   - `isDefault: true` — promove este schema a default e reaplica validação Mongo na coleção `Users`
   - Para alterar o texto do schema, inclua `schemaJson` com o JSON Schema completo
 }

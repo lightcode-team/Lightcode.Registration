@@ -1,6 +1,9 @@
+using System.Text.Json;
+
 namespace Lightcode.Registration.Application.Contracts.JsonSchema;
 
 public sealed record UpdateAccountJsonSchemaRequest(
     string? DisplayName,
-    string? SchemaJson,
+    JsonElement? Config,
+    JsonElement? SchemaJson,
     bool? IsDefault);

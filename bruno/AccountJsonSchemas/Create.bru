@@ -10,19 +10,34 @@ post {
   auth: bearer
 }
 
-auth:bearer {
-  token: {{jwt}}
-}
-
 headers {
   Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{jwt}}
 }
 
 body:json {
   {
     "key": "custom-v1",
     "displayName": "Schema personalizado",
-    "schemaJson": "{\n  \"type\": \"object\",\n  \"required\": [\"email\", \"password\"],\n  \"additionalProperties\": true,\n  \"properties\": {\n    \"email\": { \"type\": \"string\", \"format\": \"email\" },\n    \"password\": { \"type\": \"string\", \"minLength\": 8 }\n  }\n}",
+    "config": {
+      "Expiry": {
+        "expiryRegister": false,
+        "daysExpiry": 360
+      }
+    },
+    "schemaJson": {
+      "type": "object",
+      "required": ["email", "username", "password"],
+      "additionalProperties": true,
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "username": { "type": "string", "minLength": 1 },
+        "password": { "type": "string", "minLength": 8 }
+      }
+    },
     "isDefault": false
   }
 }
@@ -30,10 +45,12 @@ body:json {
 docs {
   # Criar JSON Schema de conta
 
-  **POST** `/api/account-json-schemas`
+  **POST** `/api/account-json-schemas` (requer **Bearer** com `tenantId` no token)
 
   - `key` — única por tenant
-  - `schemaJson` — texto JSON Schema (validado com JsonSchema.Net)
+  - `config` — opcional (ex.: `Expiry.expiryRegister`, `Expiry.daysExpiry` para expiração de cadastro)
+  - `schemaJson` — **objeto** JSON Schema (draft), não string; validado com JsonSchema.Net
+  - O schema de conta **deve** declarar `email`, `username` e `password` em `properties` e em `required`
   - `isDefault` — se `true`, torna-se o default e atualiza o validador Mongo da coleção `Users`
 
   ## Erros

@@ -17,4 +17,10 @@ public sealed class MongoTenantLookup(IMongoClient client, IOptions<MongoOptions
         var tenant = await _tenants.Find(x => x.Id == tenantId && x.Active).FirstOrDefaultAsync(cancellationToken);
         return tenant;
     }
+
+    public async Task<IReadOnlyList<Tenant>> ListActiveAsync(CancellationToken cancellationToken = default)
+    {
+        var list = await _tenants.Find(x => x.Active).ToListAsync(cancellationToken);
+        return list;
+    }
 }

@@ -8,13 +8,17 @@ public sealed class ServiceResult<T>
     public int StatusCode { get; private init; }
     public IReadOnlyList<string> Errors { get; private init; } = [];
 
-    public static ServiceResult<T> Ok(T value, int statusCode = 200) =>
+    /// <summary>Mensagem opcional para respostas de sucesso (ex.: envelope JSON fora de <c>Data</c>).</summary>
+    public string? Message { get; private init; }
+
+    public static ServiceResult<T> Ok(T value, int statusCode = 200, string? message = null) =>
         new()
         {
             IsSuccess = true,
             Value = value,
             StatusCode = statusCode,
-            Errors = []
+            Errors = [],
+            Message = message
         };
 
     public static ServiceResult<T> Fail(int statusCode, params string[] errors) =>
@@ -30,7 +34,8 @@ public sealed class ServiceResult<T>
         {
             IsSuccess = false,
             StatusCode = statusCode,
-            Errors = list
+            Errors = list,
+            Message = null
         };
     }
 }

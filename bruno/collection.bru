@@ -9,14 +9,18 @@ docs {
   API multi-tenant com MongoDB, JWT e validação de contas via JSON Schema.
 
   ## Fluxo sugerido (LOCAL)
-  1. **Create Tenant** — cria tenant (e schema default de conta).
-  2. **Issue Token** — obtém `jwt` (preencher `tenantId` no ambiente).
-  3. Pedidos com **Bearer** — usar variável `jwt` no ambiente LOCAL.
-  4. **Register Account** — registo público (sem token), corpo conforme schema default.
+  1. **Create Tenant** — cria tenant (e schema default de conta com email, username, password).
+  2. **Register Account** — `POST /api/accounts` com `X-Tenant-Id`, ou **Register Account (tenant in path)** — `POST /api/tenants/{tenantId}/accounts`.
+  3. **Issue Token** — utilizador **admin** de bootstrap (Development) ou outro user; header `X-Tenant-Id`; copiar `access_token` para `jwt`.
+  4. **Update Account (JWT)** — `PUT /api/accounts/{userId}` com Bearer (opcional após ter `userId` / token de utilizador).
+  5. **Account JSON Schemas** — criar/alterar/apagar só com JWT **admin**; listar/ver com qualquer utilizador do tenant.
 
   ## Envelope de resposta
-  Todas as respostas seguem: `Erro`, `Erros`, `StatusCode`, `Data`.
+  Campos comuns: `Error`, `Errors`, `StatusCode`, `Data`. Opcional: `Message` (ex.: confirmação fora de `Data`).
+
+  ## Tenant sem JWT
+  Em **Issue Token** e **Register Account** use sempre o cabeçalho **`X-Tenant-Id`**.
 
   ## Ambiente
-  Selecione **LOCAL** em *Environments* no Bruno e ajuste as variáveis após o primeiro token/tenant.
+  Selecione **LOCAL** em *Environments* no Bruno e ajuste `tenantId`, `jwt`, etc., após criar tenant e emitir token.
 }

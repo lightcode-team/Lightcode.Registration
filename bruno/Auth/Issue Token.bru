@@ -12,28 +12,32 @@ post {
 
 headers {
   Content-Type: application/json
+  X-Tenant-Id: {{tenantId}}
 }
 
 body:json {
   {
-    "userId": "{{userId}}",
-    "tenantId": "{{tenantId}}"
+    "username": "{{loginUsername}}",
+    "password": "{{loginPassword}}"
   }
 }
 
 docs {
-  # Emitir JWT
+  # Emitir JWT (login)
 
   **POST** `/api/auth/token`
 
-  Corpo JSON com `userId` e `tenantId` (tenant ativo no master).
+  - **Header obrigatório:** `X-Tenant-Id` — id do tenant (não vai no corpo).
+  - **Corpo:** `username` e `password` (utilizador na coleção `Users` do tenant).
 
   ## Resposta (Data)
   - `access_token` — colar no ambiente LOCAL na variável `jwt`
   - `token_type` — `Bearer`
   - `expires_in` — segundos
 
+  O JWT inclui `sub` (id do utilizador em Mongo) e `tenantId`.
+
   ## Erros comuns
-  - `400` — campos em falta
-  - `401` — tenant inexistente ou inativo
+  - `400` — falta `X-Tenant-Id` ou username/password
+  - `401` — tenant inativo ou credenciais inválidas
 }

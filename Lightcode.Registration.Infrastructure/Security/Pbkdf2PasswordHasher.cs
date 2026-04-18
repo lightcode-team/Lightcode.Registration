@@ -23,4 +23,38 @@ public sealed class Pbkdf2PasswordHasher : IPasswordHasher
 
         return $"pbkdf2_sha256${Iterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
     }
+
+    public bool Verify(string plainTextPassword, string storedHash)
+    {
+        if (string.IsNullOrEmpty(plainTextPassword) || string.IsNullOrEmpty(storedHash))
+            return false;
+
+        var parts = storedHash.Split('$', 4, StringSplitOptions.None);
+        if (parts.Length != 4 || parts[0] != "pbkdf2_sha256")
+            return false;
+
+        if (!int.TryParse(parts[1], out var iterations) || iterations < 1)
+            return false;
+
+        byte[] salt;
+        byte[] expected;
+        try
+        {
+            salt = Convert.FromBase64String(parts[2]);
+            expected = Convert.FromBase64String(parts[3]);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+
+        var actual = Rfc2898DeriveBytes.Pbkdf2(
+            Encoding.UTF8.GetBytes(plainTextPassword),
+            salt,
+            iterations,
+            Algorithm,
+            expected.Length);
+
+        return CryptographicOperations.FixedTimeEquals(actual, expected);
+    }
 }

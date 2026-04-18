@@ -1,6 +1,9 @@
+using System.Text.Json;
 using Lightcode.Registration.Application.Abstractions;
+using Lightcode.Registration.Application.Accounts;
 using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Registration;
+using Lightcode.Registration.Application.Security;
 using Lightcode.Registration.Domain.Entities;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
@@ -9,23 +12,30 @@ namespace Lightcode.Registration.Infrastructure.Persistence.Mongo;
 
 public sealed class MongoTenantProvisioner : ITenantProvisioner
 {
-    private readonly IMongoClient _client;
     private readonly IMongoCollection<Tenant> _tenants;
     private readonly IAccountJsonSchemaRepository _accountSchemas;
     private readonly IJsonSchemaToMongoValidatorMapper _mongoMapper;
     private readonly IUsersCollectionSchemaApplier _usersSchemaApplier;
+    private readonly IUserAccountWriter _userAccountWriter;
+    private readonly IPasswordHasher _passwordHasher;
+    private readonly MasterOptions _masterOptions;
 
     public MongoTenantProvisioner(
         IMongoClient client,
         IOptions<MongoOptions> mongoOptions,
+        IOptions<MasterOptions> masterOptions,
         IAccountJsonSchemaRepository accountSchemas,
         IJsonSchemaToMongoValidatorMapper mongoMapper,
-        IUsersCollectionSchemaApplier usersSchemaApplier)
+        IUsersCollectionSchemaApplier usersSchemaApplier,
+        IUserAccountWriter userAccountWriter,
+        IPasswordHasher passwordHasher)
     {
-        _client = client;
         _accountSchemas = accountSchemas;
         _mongoMapper = mongoMapper;
         _usersSchemaApplier = usersSchemaApplier;
+        _userAccountWriter = userAccountWriter;
+        _passwordHasher = passwordHasher;
+        _masterOptions = masterOptions.Value;
         var mongo = mongoOptions.Value;
         var master = client.GetDatabase(mongo.MasterDatabaseName);
         _tenants = master.GetCollection<Tenant>("Tenants");
@@ -54,6 +64,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
             TenantId = tenant.Id,
             Key = "default",
             DisplayName = "Registo default",
+            ConfigJson = null,
             SchemaJson = DefaultAccountRegistrationSchema.Json.Trim(),
             IsDefault = true,
             CreatedAtUtc = now,
@@ -66,6 +77,36 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
         if (!string.IsNullOrEmpty(mongoInner))
             await _usersSchemaApplier.ApplyAsync(tenant.Id, mongoInner, cancellationToken);
 
+        await TrySeedBootstrapAdminAsync(tenant.Id, cancellationToken);
+
         return tenant;
+    }
+
+    private async Task TrySeedBootstrapAdminAsync(string tenantId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(_masterOptions.TenantBootstrapAdminPassword))
+            return;
+
+        var username = _masterOptions.TenantBootstrapAdminUsername.Trim().ToLowerInvariant();
+        if (await _userAccountWriter.UsernameExistsAsync(tenantId, username, cancellationToken))
+            return;
+
+        var email = "admin@localhost";
+        if (await _userAccountWriter.EmailExistsAsync(tenantId, email, cancellationToken))
+            return;
+
+        var hash = _passwordHasher.Hash(_masterOptions.TenantBootstrapAdminPassword);
+        var payload = new Dictionary<string, object?>
+        {
+            ["email"] = email,
+            ["username"] = username,
+            ["password"] = hash,
+            ["roles"] = new[] { UserRoles.Admin },
+            ["createdAtUtc"] = DateTime.UtcNow,
+            ["status"] = AccountStatuses.Active
+        };
+
+        var json = JsonSerializer.Serialize(payload);
+        await _userAccountWriter.InsertAsync(tenantId, json, cancellationToken);
     }
 }

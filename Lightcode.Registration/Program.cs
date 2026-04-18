@@ -1,6 +1,7 @@
 using System.Text;
 using Lightcode.Registration.Api;
 using Lightcode.Registration.Application.Configuration;
+using Lightcode.Registration.Application.Security;
 using Lightcode.Registration.Infrastructure;
 using Lightcode.Registration.Infrastructure.Persistence.Mongo;
 using Lightcode.Registration.Middleware;
@@ -35,6 +36,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(o =>
     {
+        // Mantém os nomes dos claims como no JWT (ex.: tenantId); com true, o handler mapeia para URIs e quebra RequireClaim/FindFirst.
+        o.MapInboundClaims = false;
         o.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
@@ -44,7 +47,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidAudience = jwtSection.Audience,
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromMinutes(1)
+            ClockSkew = TimeSpan.FromMinutes(1),
+            RoleClaimType = "role"
         };
     });
 
@@ -54,6 +58,13 @@ builder.Services.AddAuthorization(o =>
     {
         p.RequireAuthenticatedUser();
         p.RequireClaim("tenantId");
+    });
+
+    o.AddPolicy("TenantAdmin", p =>
+    {
+        p.RequireAuthenticatedUser();
+        p.RequireClaim("tenantId");
+        p.RequireRole(UserRoles.Admin);
     });
 });
 

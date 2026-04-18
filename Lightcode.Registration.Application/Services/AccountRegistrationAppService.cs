@@ -1,7 +1,10 @@
 using System.Text.Json.Nodes;
 using Lightcode.Registration.Application.Abstractions;
+using Lightcode.Registration.Application.Accounts;
 using Lightcode.Registration.Application.Common;
 using Lightcode.Registration.Application.Contracts.Accounts;
+using Lightcode.Registration.Application.SchemaConfig;
+using Lightcode.Registration.Application.Security;
 
 namespace Lightcode.Registration.Application.Services;
 
@@ -48,19 +51,43 @@ public sealed class AccountRegistrationAppService(
         if (obj["email"] is not JsonValue emailNode || !emailNode.TryGetValue<string>(out var email) || string.IsNullOrWhiteSpace(email))
             return ServiceResult<RegisterAccountResult>.Fail(400, "Campo email em falta ou inválido.");
 
+        if (obj["username"] is not JsonValue userNode || !userNode.TryGetValue<string>(out var username) || string.IsNullOrWhiteSpace(username))
+            return ServiceResult<RegisterAccountResult>.Fail(400, "Campo username em falta ou inválido.");
+
+        if (obj["password"] is not JsonValue passNode || !passNode.TryGetValue<string>(out var plain) || string.IsNullOrWhiteSpace(plain))
+            return ServiceResult<RegisterAccountResult>.Fail(400, "Campo password em falta ou inválido.");
+
         email = email.Trim().ToLowerInvariant();
+        username = username.Trim().ToLowerInvariant();
+
         if (await userAccountWriter.EmailExistsAsync(tenant.Id, email, cancellationToken))
             return ServiceResult<RegisterAccountResult>.Fail(409, "Já existe uma conta com este email.");
 
-        if (obj["password"] is JsonValue pv && pv.TryGetValue<string>(out var plain) && !string.IsNullOrEmpty(plain))
-            obj["password"] = passwordHasher.Hash(plain);
+        if (await userAccountWriter.UsernameExistsAsync(tenant.Id, username, cancellationToken))
+            return ServiceResult<RegisterAccountResult>.Fail(409, "Já existe uma conta com este nome de utilizador.");
 
+        obj.Remove("role");
+        obj.Remove("roles");
+
+        obj["password"] = passwordHasher.Hash(plain);
         obj["email"] = email;
+        obj["username"] = username;
+        obj["roles"] = new JsonArray(JsonValue.Create(UserRoles.User));
         obj["createdAtUtc"] = JsonValue.Create(DateTime.UtcNow);
+        obj["status"] = JsonValue.Create(AccountStatuses.Active);
+
+        if (AccountSchemaConfigParser.TryGetRegistrationExpiry(schemaEntity.ConfigJson, out var daysExpiry))
+        {
+            var expires = DateTime.UtcNow.AddDays(daysExpiry);
+            obj["registrationExpiresAtUtc"] = JsonValue.Create(expires);
+        }
 
         var toSave = obj.ToJsonString();
-        await userAccountWriter.InsertAsync(tenant.Id, toSave, cancellationToken);
+        var userId = await userAccountWriter.InsertAsync(tenant.Id, toSave, cancellationToken);
 
-        return ServiceResult<RegisterAccountResult>.Ok(new RegisterAccountResult("Conta criada com sucesso."), 201);
+        return ServiceResult<RegisterAccountResult>.Ok(
+            new RegisterAccountResult(userId),
+            201,
+            "Conta criada com sucesso.");
     }
 }

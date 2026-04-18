@@ -16,6 +16,22 @@ services:
       retries: 5
       start_period: 15s
 
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
   api:
     build:
       context: .
@@ -34,6 +50,29 @@ services:
       # Gere um segredo forte na VPS; mínimo 32 caracteres
       Jwt__SigningKey: "${JWT_SIGNING_KEY:-CHANGE_ME_USE_ENV_IN_PROD_MIN_32_CHARS!!}"
       Master__ProvisioningApiKey: "${MASTER_PROVISIONING_KEY:-}"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DOTNET_ENVIRONMENT: Production
+      Mongo__ConnectionString: mongodb://mongo:27017
+      Mongo__MasterDatabaseName: SaasMasterDb
+      Jwt__SigningKey: "${JWT_SIGNING_KEY:-CHANGE_ME_USE_ENV_IN_PROD_MIN_32_CHARS!!}"
+      Master__ProvisioningApiKey: "${MASTER_PROVISIONING_KEY:-}"
+      RabbitMQ__HostName: rabbitmq
+      RabbitMQ__Port: "5672"
+      RabbitMQ__UserName: guest
+      RabbitMQ__Password: guest
+      RabbitMQ__ScanIntervalMinutes: "60"
+      Smtp__UseSmtp: "false"
 
 volumes:
   mongo_data:

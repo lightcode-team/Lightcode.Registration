@@ -7,12 +7,13 @@ namespace Lightcode.Registration.Api;
 /// <summary>Monta <see cref="ObjectResult"/> e grava JSON no <see cref="HttpContext"/> com o mesmo contrato.</summary>
 public static class ApiResponse
 {
-    public static ObjectResult Success<T>(T data, int statusCode = StatusCodes.Status200OK) =>
+    public static ObjectResult Success<T>(T data, int statusCode = StatusCodes.Status200OK, string? message = null) =>
         new(new ApiEnvelope<T>
         {
-            Erro = false,
-            Erros = [],
+            Error = false,
+            Errors = [],
             StatusCode = statusCode,
+            Message = message,
             Data = data
         })
         {
@@ -33,9 +34,10 @@ public static class ApiResponse
         var lista = NormalizarErros(erros);
         return new ObjectResult(new ApiEnvelope<T?>
         {
-            Erro = true,
-            Erros = lista,
+            Error = true,
+            Errors = lista,
             StatusCode = statusCode,
+            Message = null,
             Data = default
         })
         {
@@ -55,9 +57,10 @@ public static class ApiResponse
         var lista = NormalizarErros(erros);
         var body = new ApiEnvelope<object?>
         {
-            Erro = true,
-            Erros = lista,
+            Error = true,
+            Errors = lista,
             StatusCode = statusCode,
+            Message = null,
             Data = null
         };
 

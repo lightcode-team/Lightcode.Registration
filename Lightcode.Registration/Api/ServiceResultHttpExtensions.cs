@@ -8,7 +8,7 @@ public static class ServiceResultHttpExtensions
     public static IActionResult ToApiResponse<T>(this ServiceResult<T> result)
     {
         if (result.IsSuccess)
-            return ApiResponse.Success(result.Value!, result.StatusCode);
+            return ApiResponse.Success(result.Value!, result.StatusCode, result.Message);
 
         return ApiResponse.Error(result.StatusCode, result.Errors);
     }

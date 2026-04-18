@@ -28,7 +28,12 @@ public sealed class JsonSchemaDocumentValidator : IJsonSchemaValidationService
             return [$"JSON do pedido inválido: {ex.Message}"];
         }
 
-        var result = schema.Evaluate(instance, new EvaluationOptions());
+        var options = new EvaluationOptions
+        {
+            RequireFormatValidation = true,
+            OutputFormat = OutputFormat.List
+        };
+        var result = schema.Evaluate(instance, options);
 
         if (result.IsValid)
             return [];
@@ -40,7 +45,7 @@ public sealed class JsonSchemaDocumentValidator : IJsonSchemaValidationService
 
     private static void CollectErrors(EvaluationResults node, List<string> messages)
     {
-        if (node.HasErrors && node.Errors is { Count: > 0 } errors)
+        if (node.Errors is { Count: > 0 } errors)
         {
             foreach (var kv in errors)
                 messages.Add($"{node.InstanceLocation}: {kv.Key} — {kv.Value}");
