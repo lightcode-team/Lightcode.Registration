@@ -12,6 +12,7 @@ namespace Lightcode.Registration.Infrastructure.Persistence.Mongo;
 
 public sealed class MongoTenantProvisioner : ITenantProvisioner
 {
+    private readonly IMongoClient _mongoClient;
     private readonly IMongoCollection<Tenant> _tenants;
     private readonly IAccountJsonSchemaRepository _accountSchemas;
     private readonly IJsonSchemaToMongoValidatorMapper _mongoMapper;
@@ -19,23 +20,27 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
     private readonly IUserAccountWriter _userAccountWriter;
     private readonly IPasswordHasher _passwordHasher;
     private readonly MasterOptions _masterOptions;
+    private readonly TenantDefaultSmtpOptions _defaultTenantSmtp;
 
     public MongoTenantProvisioner(
         IMongoClient client,
         IOptions<MongoOptions> mongoOptions,
         IOptions<MasterOptions> masterOptions,
+        IOptions<TenantDefaultSmtpOptions> defaultTenantSmtp,
         IAccountJsonSchemaRepository accountSchemas,
         IJsonSchemaToMongoValidatorMapper mongoMapper,
         IUsersCollectionSchemaApplier usersSchemaApplier,
         IUserAccountWriter userAccountWriter,
         IPasswordHasher passwordHasher)
     {
+        _mongoClient = client;
         _accountSchemas = accountSchemas;
         _mongoMapper = mongoMapper;
         _usersSchemaApplier = usersSchemaApplier;
         _userAccountWriter = userAccountWriter;
         _passwordHasher = passwordHasher;
         _masterOptions = masterOptions.Value;
+        _defaultTenantSmtp = defaultTenantSmtp.Value;
         var mongo = mongoOptions.Value;
         var master = client.GetDatabase(mongo.MasterDatabaseName);
         _tenants = master.GetCollection<Tenant>("Tenants");
@@ -56,6 +61,8 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
         };
 
         await _tenants.InsertOneAsync(tenant, cancellationToken: cancellationToken);
+
+        await SeedTenantSmtpSettingsAsync(dbName, cancellationToken);
 
         var now = DateTime.UtcNow;
         var defaultSchema = new AccountJsonSchema
@@ -80,6 +87,34 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
         await TrySeedBootstrapAdminAsync(tenant.Id, cancellationToken);
 
         return tenant;
+    }
+
+    private async Task SeedTenantSmtpSettingsAsync(string tenantDatabaseName, CancellationToken cancellationToken)
+    {
+        var from = string.IsNullOrWhiteSpace(_defaultTenantSmtp.EmailRemetente)
+            ? _defaultTenantSmtp.Usuario
+            : _defaultTenantSmtp.EmailRemetente;
+
+        var doc = new TenantSmtpSettingsRoot
+        {
+            Id = TenantSmtpSettingsRoot.DocumentId,
+            Smtp = new TenantSmtpConfiguration
+            {
+                Host = _defaultTenantSmtp.Host,
+                Port = _defaultTenantSmtp.Port,
+                Usuario = _defaultTenantSmtp.Usuario,
+                Senha = _defaultTenantSmtp.Senha,
+                EmailRemetente = from,
+                NomeRemetente = _defaultTenantSmtp.NomeRemetente,
+                UsarSsl = _defaultTenantSmtp.UsarSsl
+            }
+        };
+
+        var coll = _mongoClient
+            .GetDatabase(tenantDatabaseName)
+            .GetCollection<TenantSmtpSettingsRoot>(TenantSmtpSettingsRoot.CollectionName);
+
+        await coll.InsertOneAsync(doc, cancellationToken: cancellationToken);
     }
 
     private async Task TrySeedBootstrapAdminAsync(string tenantId, CancellationToken cancellationToken)

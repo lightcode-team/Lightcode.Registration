@@ -7,7 +7,25 @@
 ## Abrir no Bruno
 
 1. **Open Collection** → escolha a pasta `bruno` deste repositório (a que contém `bruno.json`).
-2. No canto superior direito, selecione o ambiente **LOCAL**.
+2. No canto superior direito, selecione o ambiente **LOCAL** (desenvolvimento na máquina) ou **DOCKER** (`docker compose up` com as portas deste repositório).
+
+## Ambiente DOCKER
+
+Ficheiro: `environments/DOCKER.bru`
+
+Use quando **api**, **email-api**, **mongo** e **rabbitmq** estiverem a correr via `docker compose` na raiz do projeto.
+
+| Variável | Valor predefinido | Notas |
+|----------|-------------------|--------|
+| `baseUrl` | `http://localhost:8080` | API principal (`api` no compose) |
+| `emailApiBaseUrl` | `http://localhost:8081` | API de email (`email-api`, mapeamento `8081:8080`) |
+| `rabbitManagementUrl` | `http://localhost:15672` | UI de gestão RabbitMQ (guest/guest) — só referência para testes manuais |
+| `mongoUrl` | `mongodb://localhost:27017` | Referência; os pedidos HTTP vão sempre às APIs |
+| `provisioningKey` | *(vazio)* | Deve coincidir com `Master__ProvisioningApiKey` do compose (defina `MASTER_PROVISIONING_KEY` no `.env` ou nas variáveis do compose) |
+| `tenantId` / `jwt` / `schemaId` | *(vazio)* | Preencher após **Create Tenant** e **Issue Token** contra as URLs DOCKER |
+| `loginUsername` / `loginPassword` | admin / *(vazio)* | Só funcionam se o contentor tiver `Master__TenantBootstrapAdminPassword` (e user) configurados; caso contrário use **Register Account** + **Issue Token** |
+
+O **JWT** emitido contra `localhost:5012` **não** serve no Docker se `Jwt__SigningKey` for diferente: emita token de novo com **Issue Token** apontando para `baseUrl` do ambiente DOCKER.
 
 ## Ambiente LOCAL
 
@@ -40,8 +58,7 @@ Ficheiro: `environments/LOCAL.bru`
 
 A rota legada `POST /api/tenants/{tenantId}/accounts` continua disponível; sem `X-Tenant-Id`, o tenant vem do URL.
 
-## Docker
+## Docker (resumo)
 
-Se a API correr em Docker na porta **8080**, altere no ambiente LOCAL:
-
-`baseUrl`: `http://localhost:8080`
+- Preferir o ambiente **DOCKER** em vez de editar o LOCAL.
+- Portas expostas pelo `docker-compose.yml` deste repo: API **8080**, Email API **8081**, RabbitMQ management **15672**, AMQP **5672**, Mongo **27017**.

@@ -1,27 +1,20 @@
-using System.Net;
-using System.Net.Mail;
 using Lightcode.Registration.Application.Abstractions;
-using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Contracts.Expiry;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Lightcode.Registration.Infrastructure.Notifications;
 
 public sealed class SmtpAccountExpiryNotificationSender(
-    IOptions<SmtpOptions> options,
+    IServiceScopeFactory scopeFactory,
     ILogger<SmtpAccountExpiryNotificationSender> logger) : IAccountExpiryNotificationSender
 {
     public async Task SendExpiryReminderAsync(RegistrationExpiryReminderMessage message, CancellationToken cancellationToken = default)
     {
-        var o = options.Value;
-        using var client = new SmtpClient(o.Host, o.Port)
-        {
-            EnableSsl = o.UseSsl,
-            Credentials = string.IsNullOrEmpty(o.User)
-                ? CredentialCache.DefaultNetworkCredentials
-                : new NetworkCredential(o.User, o.Password)
-        };
+        using var scope = scopeFactory.CreateScope();
+        var repo = scope.ServiceProvider.GetRequiredService<ITenantSmtpSettingsRepository>();
+        var smtp = await repo.GetSmtpAsync(message.TenantId, cancellationToken)
+            ?? throw new InvalidOperationException($"Configuração SMTP do tenant '{message.TenantId}' não encontrada.");
 
         var subject = message.ReminderKind == 30
             ? "O seu cadastro expira em breve (30 dias)"
@@ -31,16 +24,11 @@ public sealed class SmtpAccountExpiryNotificationSender(
             $"O seu registo irá expirar em {message.RegistrationExpiresAtUtc:u} (UTC). " +
             "Atualize os dados da sua conta para renovar o cadastro.";
 
-        using var mail = new MailMessage
-        {
-            From = new MailAddress(o.FromAddress, o.FromName),
-            Subject = subject,
-            Body = body,
-            IsBodyHtml = false
-        };
-        mail.To.Add(message.Email);
+        var (client, mail) = SmtpMailClientFactory.CreateForSend(smtp, message.Email, subject, body, isBodyHtml: false);
+        using (client)
+        using (mail)
+            await client.SendMailAsync(mail, cancellationToken).ConfigureAwait(false);
 
-        await client.SendMailAsync(mail, cancellationToken);
-        logger.LogInformation("Email de lembrete {Kind}d enviado para {Email}", message.ReminderKind, message.Email);
+        logger.LogInformation("Email de lembrete {Kind}d enviado para {Email} (tenant {TenantId})", message.ReminderKind, message.Email, message.TenantId);
     }
 }

@@ -1,0 +1,33 @@
+meta {
+  name: Create Email Template
+  type: http
+  seq: 22
+}
+
+post {
+  url: {{emailApiBaseUrl}}/api/email-templates
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "key": "welcome",
+    "displayName": "Boas-vindas",
+    "subject": "Olá {{name}}",
+    "htmlBody": "<p>Olá <strong>{{name}}</strong>, bem-vindo.</p>",
+    "textBody": "Olá {{name}}, bem-vindo."
+  }
+}
+
+docs {
+  **POST** `/api/email-templates` — apenas **admin** do tenant.
+}

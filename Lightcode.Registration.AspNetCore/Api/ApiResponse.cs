@@ -7,7 +7,7 @@ namespace Lightcode.Registration.Api;
 /// <summary>Monta <see cref="ObjectResult"/> e grava JSON no <see cref="HttpContext"/> com o mesmo contrato.</summary>
 public static class ApiResponse
 {
-    public static ObjectResult Success<T>(T data, int statusCode = StatusCodes.Status200OK, string? message = null) =>
+    public static ObjectResult Success<T>(T? data, int statusCode = StatusCodes.Status200OK, string? message = null) =>
         new(new ApiEnvelope<T>
         {
             Error = false,

@@ -1,5 +1,5 @@
 meta {
-  name: Register Account (tenant in path)
+  name: Register Account (public)
   type: http
   seq: 11
 }
@@ -18,7 +18,9 @@ body:json {
   {
     "email": "frederick.aquino23@gmail.com",
     "password": "Python90!@",
-    "username": "frederick.aquino23@gmail.com"
+    "username": "frederick.aquino23@gmail.com",
+    "document": "08539374358",
+    "phone": "85997477201"
   }
 }
 
@@ -27,13 +29,11 @@ vars:pre-request {
 }
 
 docs {
-  # Registar conta (público, tenant na URL)
+  # Registar conta (público)
   
   **POST** `/api/tenants/{tenantId}/accounts`
   
   Não requer autenticação. O corpo é validado contra o **JSON Schema default** do tenant.
-
-  Alternativa: **Register Account (X-Tenant-Id)** — `POST /api/accounts` com cabeçalho `X-Tenant-Id` (recomendado).
   
   ## Variável
   - `tenantId` — id devolvido ao criar o tenant (mesmo valor usado no token)

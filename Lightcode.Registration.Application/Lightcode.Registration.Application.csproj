@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageReference Include="JsonSchema.Net" Version="7.3.4" />
+    <PackageReference Include="MediatR" Version="12.4.1" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.6" />
   </ItemGroup>
 

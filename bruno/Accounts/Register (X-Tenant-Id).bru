@@ -19,27 +19,29 @@ body:json {
   {
     "email": "frederick.aquino23@gmail.com",
     "password": "Python90!@",
-    "username": "frederick.aquino23@gmail.com"
+    "username": "frederick.aquino23@gmail.com",
+    "phone": "85997477201",
+    "document": "08539374358"
   }
 }
 
 docs {
   # Registar conta (público, tenant no cabeçalho)
-
+  
   **POST** `/api/accounts`
-
+  
   Não requer autenticação. Envie o tenant no cabeçalho **`X-Tenant-Id`** (preferido em relação à rota com `{tenantId}` no path).
-
+  
   O corpo é validado contra o **JSON Schema default** do tenant.
-
+  
   ## Ambiente
   - `tenantId` — variável do ambiente LOCAL (mesmo id usado no **Issue Token**)
-
+  
   ## Comportamento
   - Password persistida como hash (PBKDF2)
   - Email normalizado (minúsculas)
   - `409` se o email já existir na coleção `Users` do tenant
-
+  
   ## Ver também
   - **Register Account (public)** — `POST /api/tenants/{tenantId}/accounts` quando não quiser usar o cabeçalho.
 }

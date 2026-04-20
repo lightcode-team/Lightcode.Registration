@@ -8,13 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Lightcode.Registration.AspNetCore\Lightcode.Registration.AspNetCore.csproj" />
     <ProjectReference Include="..\Lightcode.Registration.Application\Lightcode.Registration.Application.csproj" />
-    <ProjectReference Include="..\Lightcode.Registration.Infrastructure\Lightcode.Registration.Infrastructure.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.6" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.6" />
   </ItemGroup>
 
 </Project>

@@ -6,6 +6,7 @@ using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Contracts.Expiry;
 using Lightcode.Registration.Application.SchemaConfig;
 using Lightcode.Registration.Worker.RabbitMq;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -16,9 +17,7 @@ namespace Lightcode.Registration.Worker;
 public sealed class RegistrationExpiryScanHostedService(
     IConnection rabbitConnection,
     IMongoClient mongoClient,
-    ITenantLookup tenantLookup,
-    IAccountJsonSchemaRepository schemaRepository,
-    IUserAccountWriter userAccountWriter,
+    IServiceScopeFactory scopeFactory,
     IOptions<RabbitMqOptions> rabbitOptions,
     ILogger<RegistrationExpiryScanHostedService> logger) : BackgroundService
 {
@@ -53,6 +52,11 @@ public sealed class RegistrationExpiryScanHostedService(
 
     private async Task RunScanAsync(CancellationToken cancellationToken)
     {
+        using var scope = scopeFactory.CreateScope();
+        var tenantLookup = scope.ServiceProvider.GetRequiredService<ITenantLookup>();
+        var schemaRepository = scope.ServiceProvider.GetRequiredService<IAccountJsonSchemaRepository>();
+        var userAccountWriter = scope.ServiceProvider.GetRequiredService<IUserAccountWriter>();
+
         var tenants = await tenantLookup.ListActiveAsync(cancellationToken);
         using var publishChannel = rabbitConnection.CreateModel();
         var props = publishChannel.CreateBasicProperties();

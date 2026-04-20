@@ -14,6 +14,7 @@ docs {
   3. **Issue Token** — utilizador **admin** de bootstrap (Development) ou outro user; header `X-Tenant-Id`; copiar `access_token` para `jwt`.
   4. **Update Account (JWT)** — `PUT /api/accounts/{userId}` com Bearer (opcional após ter `userId` / token de utilizador).
   5. **Account JSON Schemas** — criar/alterar/apagar só com JWT **admin**; listar/ver com qualquer utilizador do tenant.
+  6. **Email / templates** — API dedicada (`emailApiBaseUrl`, ex.: `http://localhost:5013` no ambiente LOCAL); mesmos JWT e políticas.
 
   ## Envelope de resposta
   Campos comuns: `Error`, `Errors`, `StatusCode`, `Data`. Opcional: `Message` (ex.: confirmação fora de `Data`).
@@ -22,5 +23,7 @@ docs {
   Em **Issue Token** e **Register Account** use sempre o cabeçalho **`X-Tenant-Id`**.
 
   ## Ambiente
-  Selecione **LOCAL** em *Environments* no Bruno e ajuste `tenantId`, `jwt`, etc., após criar tenant e emitir token.
+  - **LOCAL** — APIs em `dotnet run` (portas 5012 / 5013).
+  - **DOCKER** — `docker compose`: `baseUrl` http://localhost:8080, `emailApiBaseUrl` http://localhost:8081 (ver `environments/DOCKER.bru`).
+  Ajuste `tenantId`, `jwt`, `provisioningKey`, etc., após criar tenant e emitir token contra o host escolhido.
 }

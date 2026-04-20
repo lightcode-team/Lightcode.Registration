@@ -1,5 +1,6 @@
 using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application.Services;
+using Lightcode.Registration.Infrastructure.Email;
 using Lightcode.Registration.Infrastructure.Hosting;
 using Lightcode.Registration.Infrastructure.Persistence.Mongo;
 using Lightcode.Registration.Infrastructure.Security;
@@ -9,7 +10,12 @@ namespace Lightcode.Registration.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services)
+    /// <param name="registerRabbitMqEmailEnqueuePublisher">
+    /// Quando falso, regista <see cref="DisabledEmailEnqueuePublisher"/> (necessário se não existir <c>IConnection</c> RabbitMQ).
+    /// </param>
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        bool registerRabbitMqEmailEnqueuePublisher = true)
     {
         services.AddSingleton<IRuntimeEnvironment, AspNetCoreRuntimeEnvironment>();
 
@@ -35,6 +41,13 @@ public static class DependencyInjection
         services.AddScoped<IAccountJsonSchemaAppService, AccountJsonSchemaAppService>();
         services.AddScoped<IAccountRegistrationAppService, AccountRegistrationAppService>();
         services.AddScoped<IAccountUpdateAppService, AccountUpdateAppService>();
+
+        services.AddScoped<ITenantSmtpSettingsRepository, MongoTenantSmtpSettingsRepository>();
+        services.AddScoped<IEmailTemplateRepository, MongoEmailTemplateRepository>();
+        if (registerRabbitMqEmailEnqueuePublisher)
+            services.AddScoped<IEmailEnqueuePublisher, RabbitMqEmailEnqueuePublisher>();
+        else
+            services.AddScoped<IEmailEnqueuePublisher, DisabledEmailEnqueuePublisher>();
 
         return services;
     }

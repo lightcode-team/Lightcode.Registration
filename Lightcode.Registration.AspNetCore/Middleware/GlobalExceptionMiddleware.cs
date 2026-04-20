@@ -1,5 +1,8 @@
 using Lightcode.Registration.Api;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Lightcode.Registration.Middleware;
 

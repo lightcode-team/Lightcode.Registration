@@ -18,6 +18,8 @@ public static class MongoSerialization
             RegisterTenant();
             RegisterWeatherForecast();
             RegisterAccountJsonSchema();
+            RegisterEmailTemplate();
+            RegisterTenantSmtpSettings();
             _registered = true;
         }
     }
@@ -61,6 +63,41 @@ public static class MongoSerialization
             cm.MapIdProperty(x => x.Id);
             cm.MapProperty(x => x.SchemaJson).SetSerializer(new SchemaJsonBsonSerializer());
             cm.MapProperty(x => x.ConfigJson).SetSerializer(new SchemaJsonBsonSerializer());
+        });
+    }
+
+    private static void RegisterEmailTemplate()
+    {
+        if (BsonClassMap.IsClassMapRegistered(typeof(EmailTemplate)))
+            return;
+
+        BsonClassMap.RegisterClassMap<EmailTemplate>(cm =>
+        {
+            cm.AutoMap();
+            cm.SetIgnoreExtraElements(true);
+            cm.MapIdProperty(x => x.Id);
+        });
+    }
+
+    private static void RegisterTenantSmtpSettings()
+    {
+        if (BsonClassMap.IsClassMapRegistered(typeof(TenantSmtpSettingsRoot)))
+            return;
+
+        BsonClassMap.RegisterClassMap<TenantSmtpSettingsRoot>(cm =>
+        {
+            cm.AutoMap();
+            cm.SetIgnoreExtraElements(true);
+            cm.MapIdProperty(x => x.Id);
+        });
+
+        if (BsonClassMap.IsClassMapRegistered(typeof(TenantSmtpConfiguration)))
+            return;
+
+        BsonClassMap.RegisterClassMap<TenantSmtpConfiguration>(cm =>
+        {
+            cm.AutoMap();
+            cm.SetIgnoreExtraElements(true);
         });
     }
 }

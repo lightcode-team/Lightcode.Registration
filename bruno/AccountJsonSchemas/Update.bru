@@ -20,23 +20,46 @@ auth:bearer {
 
 body:json {
   {
+    "key": "identity",
     "displayName": "Schema Atualizado",
     "config": {
       "Expiry": {
-        "expiryRegister": true,
+        "expiryRegister": false,
         "daysExpiry": 360
       }
     },
     "schemaJson": {
       "type": "object",
-      "required": ["email", "username", "password"],
+      "required": [
+        "email",
+        "username",
+        "password",
+        "phone",
+        "document"
+      ],
       "additionalProperties": true,
       "properties": {
-        "email": { "type": "string", "format": "email" },
-        "username": { "type": "string", "minLength": 1 },
-        "password": { "type": "string", "minLength": 8 },
-        "phone": { "type": "string", "minLength": 8 },
-        "document": { "type": "string", "minLength": 8 }
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "username": {
+          "type": "string",
+          "minLength": 1
+        },
+        "password": {
+          "type": "string",
+          "minLength": 8,
+          "pattern": "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$"
+        },
+        "phone": {
+          "type": "string",
+          "pattern": "^\\(?\\d{2}\\)?\\s?9?\\d{4}-?\\d{4}$"
+        },
+        "document": {
+          "type": "string",
+          "pattern": "^(\\d{3}\\.?\\d{3}\\.?\\d{3}-?\\d{2}|\\d{2}\\.?\\d{3}\\.?\\d{3}/?\\d{4}-?\\d{2})$"
+        }
       }
     },
     "isDefault": false
@@ -48,7 +71,7 @@ docs {
   
   **PUT** `/api/account-json-schemas/{id}`
   
-  Campos opcionais (envie só o que quiser alterar): `displayName`, `config`, `schemaJson`, `isDefault`.
+  Campos opcionais (envie só o que quiser alterar): `displayName`, `schemaJson`, `isDefault`.
   
   - `isDefault: true` — promove este schema a default e reaplica validação Mongo na coleção `Users`
   - Para alterar o texto do schema, inclua `schemaJson` com o JSON Schema completo

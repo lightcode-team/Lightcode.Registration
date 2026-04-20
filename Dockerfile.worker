@@ -15,8 +15,17 @@ COPY Lightcode.Registration.Worker/ Lightcode.Registration.Worker/
 WORKDIR /src/Lightcode.Registration.Worker
 RUN dotnet publish "Lightcode.Registration.Worker.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Run
-FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
+# Run (aspnet: inclui Microsoft.AspNetCore.App — necessário pela referência a Infrastructure com FrameworkReference ASP.NET)
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
+
+# Por defeito na rede do docker compose o broker não é "localhost" (é o nome do serviço).
+# Sobrescreve appsettings.json; em K8s/VPS use variáveis de ambiente.
+ENV RabbitMQ__HostName=rabbitmq
+ENV RabbitMQ__Port=5672
+ENV RabbitMQ__UserName=guest
+ENV RabbitMQ__Password=guest
+ENV RabbitMQ__VirtualHost=/
+
 ENTRYPOINT ["dotnet", "Lightcode.Registration.Worker.dll"]

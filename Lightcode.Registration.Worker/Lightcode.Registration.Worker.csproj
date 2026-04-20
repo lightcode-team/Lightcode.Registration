@@ -14,6 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Lightcode.Registration.Application\Lightcode.Registration.Application.csproj" />
+    <ProjectReference Include="..\Lightcode.Registration.Domain\Lightcode.Registration.Domain.csproj" />
     <ProjectReference Include="..\Lightcode.Registration.Infrastructure\Lightcode.Registration.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

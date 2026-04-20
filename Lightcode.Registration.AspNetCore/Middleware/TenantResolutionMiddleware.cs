@@ -1,5 +1,7 @@
 using Lightcode.Registration.Api;
 using Lightcode.Registration.Application.Abstractions;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 
 namespace Lightcode.Registration.Middleware;
 

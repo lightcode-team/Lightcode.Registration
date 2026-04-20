@@ -3,6 +3,7 @@ using System.Text.Json;
 using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application.Contracts.Expiry;
 using Lightcode.Registration.Worker.RabbitMq;
+using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
 
@@ -11,7 +12,7 @@ namespace Lightcode.Registration.Worker;
 public sealed class RegistrationExpiryReminderConsumerHostedService(
     IConnection rabbitConnection,
     IAccountExpiryNotificationSender notificationSender,
-    IUserAccountWriter userAccountWriter,
+    IServiceScopeFactory scopeFactory,
     ILogger<RegistrationExpiryReminderConsumerHostedService> logger) : BackgroundService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -41,12 +42,16 @@ public sealed class RegistrationExpiryReminderConsumerHostedService(
                 await notificationSender.SendExpiryReminderAsync(message, stoppingToken);
 
                 var sentUtc = DateTime.UtcNow;
-                await userAccountWriter.MarkExpiryReminderSentAsync(
-                    message.TenantId,
-                    message.UserId,
-                    message.ReminderKind,
-                    sentUtc,
-                    stoppingToken);
+                using (var scope = scopeFactory.CreateScope())
+                {
+                    var userAccountWriter = scope.ServiceProvider.GetRequiredService<IUserAccountWriter>();
+                    await userAccountWriter.MarkExpiryReminderSentAsync(
+                        message.TenantId,
+                        message.UserId,
+                        message.ReminderKind,
+                        sentUtc,
+                        stoppingToken);
+                }
 
                 channel.BasicAck(ea.DeliveryTag, false);
             }

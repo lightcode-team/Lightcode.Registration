@@ -2,6 +2,8 @@
   <Project Path="Lightcode.Registration.Domain/Lightcode.Registration.Domain.csproj" />
   <Project Path="Lightcode.Registration.Application/Lightcode.Registration.Application.csproj" />
   <Project Path="Lightcode.Registration.Infrastructure/Lightcode.Registration.Infrastructure.csproj" />
+  <Project Path="Lightcode.Registration.AspNetCore/Lightcode.Registration.AspNetCore.csproj" />
   <Project Path="Lightcode.Registration.Worker/Lightcode.Registration.Worker.csproj" />
   <Project Path="Lightcode.Registration/Lightcode.Registration.csproj" />
+  <Project Path="Lightcode.Registration.EmailApi/Lightcode.Registration.EmailApi.csproj" />
 </Solution>
