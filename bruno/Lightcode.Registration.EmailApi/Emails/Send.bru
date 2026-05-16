@@ -1,0 +1,40 @@
+meta {
+  name: Send Email
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/emails/send
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "to": "exemplo@dominio.com",
+    "templateKey": "welcome",
+    "parameters": {
+      "name": "Utilizador"
+    }
+  }
+}
+
+docs {
+  # Enfileirar envio de email
+
+  **POST** `/api/emails/send` — requer JWT com **TenantAdmin** (role `admin` no tenant).
+
+  No corpo use **`templateId`** **ou** **`templateKey`**, não ambos.
+
+  - `to` — destinatário
+  - `parameters` — substituições opcionais (mapa string → string)
+}

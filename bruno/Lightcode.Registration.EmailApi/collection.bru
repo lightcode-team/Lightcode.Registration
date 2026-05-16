@@ -1,0 +1,21 @@
+meta {
+  name: Lightcode.Registration.EmailApi
+  type: collection
+}
+
+docs {
+  # Lightcode.Registration.EmailApi
+
+  Host dedicado a **envio de email** (fila RabbitMQ) e **templates** por tenant. Todas as rotas exigem **Bearer JWT** com claim `tenantId` (mesmo token emitido pela API principal, desde que a configuração JWT seja alinhada).
+
+  ## Antes de testar
+  1. Na coleção **Lightcode.Registration**: **Create Tenant** e **Issue Token** (ou registo + token).
+  2. Copie o `access_token` para a variável `jwt` **neste** ambiente Bruno (LOCAL/DOCKER da Email API).
+  3. **Send** e gestão de templates exigem política **TenantAdmin** (token com role `admin`).
+
+  ## Portas
+  - **LOCAL** — `dotnet run` em `Lightcode.Registration.EmailApi`, HTTP **5013**.
+  - **DOCKER** — serviço `email-api`, **http://localhost:8081** (mapeamento típico deste repositório).
+
+  A variável `registrationApiUrl` é só referência para abrir a coleção da API principal no mesmo ambiente.
+}

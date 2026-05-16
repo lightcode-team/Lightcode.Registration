@@ -1,4 +1,11 @@
-# Coleção Bruno — Lightcode.Registration
+# Coleções Bruno — Lightcode.Registration
+
+Existem **duas coleções** (uma por host HTTP), cada uma com o seu `bruno.json`:
+
+| Pasta | Projeto / host | Pedidos |
+|--------|----------------|---------|
+| `bruno/Lightcode.Registration/` | `Lightcode.Registration` | tenants, auth, accounts, account-json-schemas |
+| `bruno/Lightcode.Registration.EmailApi/` | `Lightcode.Registration.EmailApi` | emails (`/api/emails/send`), templates (`/api/email-templates`) |
 
 ## Requisitos
 
@@ -6,59 +13,64 @@
 
 ## Abrir no Bruno
 
-1. **Open Collection** → escolha a pasta `bruno` deste repositório (a que contém `bruno.json`).
-2. No canto superior direito, selecione o ambiente **LOCAL** (desenvolvimento na máquina) ou **DOCKER** (`docker compose up` com as portas deste repositório).
+1. **Open Collection** → escolha **`bruno/Lightcode.Registration`** (API principal) **ou** **`bruno/Lightcode.Registration.EmailApi`** (email).
+2. Selecione o ambiente **LOCAL** ou **DOCKER** dentro dessa coleção (cada coleção tem os seus `environments/`).
+
+Para testar a Email API precisa de um JWT válido: use primeiro a coleção da API principal (**Create Tenant**, **Issue Token**) e copie o `access_token` para a variável `jwt` na coleção da Email API (o `issuer`, `audience` e chave de assinatura têm de ser os mesmos nos dois serviços).
 
 ## Ambiente DOCKER
 
-Ficheiro: `environments/DOCKER.bru`
-
 Use quando **api**, **email-api**, **mongo** e **rabbitmq** estiverem a correr via `docker compose` na raiz do projeto.
+
+**Coleção API principal** (`Lightcode.Registration/environments/DOCKER.bru`):
 
 | Variável | Valor predefinido | Notas |
 |----------|-------------------|--------|
-| `baseUrl` | `http://localhost:8080` | API principal (`api` no compose) |
-| `emailApiBaseUrl` | `http://localhost:8081` | API de email (`email-api`, mapeamento `8081:8080`) |
-| `rabbitManagementUrl` | `http://localhost:15672` | UI de gestão RabbitMQ (guest/guest) — só referência para testes manuais |
-| `mongoUrl` | `mongodb://localhost:27017` | Referência; os pedidos HTTP vão sempre às APIs |
-| `provisioningKey` | *(vazio)* | Deve coincidir com `Master__ProvisioningApiKey` do compose (defina `MASTER_PROVISIONING_KEY` no `.env` ou nas variáveis do compose) |
-| `tenantId` / `jwt` / `schemaId` | *(vazio)* | Preencher após **Create Tenant** e **Issue Token** contra as URLs DOCKER |
-| `loginUsername` / `loginPassword` | admin / *(vazio)* | Só funcionam se o contentor tiver `Master__TenantBootstrapAdminPassword` (e user) configurados; caso contrário use **Register Account** + **Issue Token** |
+| `baseUrl` | `http://localhost:8080` | Serviço `api` |
+| `rabbitManagementUrl` | `http://localhost:15672` | UI RabbitMQ (guest/guest) — referência |
+| `mongoUrl` | `mongodb://localhost:27017` | Referência; pedidos HTTP vão à API |
+| `provisioningKey` | *(vazio)* | Alinhar com `Master__ProvisioningApiKey` / `MASTER_PROVISIONING_KEY` |
+| `tenantId` / `jwt` / `schemaId` | *(exemplo ou vazio)* | Preencher após criar tenant e emitir token contra este `baseUrl` |
 
-O **JWT** emitido contra `localhost:5012` **não** serve no Docker se `Jwt__SigningKey` for diferente: emita token de novo com **Issue Token** apontando para `baseUrl` do ambiente DOCKER.
+**Coleção Email API** (`Lightcode.Registration.EmailApi/environments/DOCKER.bru`):
+
+| Variável | Valor predefinido | Notas |
+|----------|-------------------|--------|
+| `baseUrl` | `http://localhost:8081` | Serviço `email-api` |
+| `registrationApiUrl` | `http://localhost:8080` | Referência à API principal |
+| `jwt` | *(exemplo)* | Emitir de novo com **Issue Token** na API principal se a chave JWT do compose for diferente da local |
+| `emailTemplateId` | *(vazio)* | Copiar de **List Email Templates** |
 
 ## Ambiente LOCAL
 
-Ficheiro: `environments/LOCAL.bru`
+**API principal** — `baseUrl` predefinido `http://localhost:5012` (`Lightcode.Registration/Properties/launchSettings.json`).
 
-| Variável | Descrição |
-|----------|-----------|
-| `baseUrl` | URL base da API (predefinido: `http://localhost:5012`, perfil HTTP do `launchSettings.json`) |
-| `tenantId` | Id do tenant (preencher após **Create Tenant**; usado em `X-Tenant-Id` e nos pedidos públicos) |
-| `jwt` | `access_token` devolvido por **Issue Token** (colar sem prefixo `Bearer`) |
-| `loginUsername` / `loginPassword` | Credenciais para **Issue Token** (devem coincidir com o registo em **Register Account**) |
-| `provisioningKey` | Valor de `Master:ProvisioningApiKey` (ex.: `appsettings` em Development) |
-| `schemaId` | Id de um schema (copiar de **List Account JSON Schemas**) |
+**Email API** — `baseUrl` predefinido `http://localhost:5013` (`Lightcode.Registration.EmailApi/Properties/launchSettings.json`); `registrationApiUrl` aponta para `http://localhost:5012`.
+
+Variáveis comuns: `tenantId`, `jwt`, `loginUsername` / `loginPassword`, `provisioningKey`, `schemaId` (só na coleção principal).
 
 ## Roles (`admin` / `user`)
 
-- No MongoDB, o utilizador tem o campo **`roles`** (array de strings), ex.: `["user"]` ou `["admin","user"]`.
-- Registo público define sempre **`roles: ["user"]`** (o cliente não pode impor `admin`).
+- No MongoDB, o utilizador tem **`roles`** (array), ex.: `["user"]` ou `["admin","user"]`.
+- Registo público define **`roles: ["user"]`**.
 - Em **Development**, o bootstrap cria **`roles: ["admin"]`** para o utilizador inicial.
-- No JWT, cada role aparece como uma claim **`role`** repetida (padrão ASP.NET Core para `RequireRole`).
-- **Criar / atualizar / apagar** JSON Schemas exige pelo menos uma claim **`role: admin`**. Listar / obter por id bastam utilizador autenticado no tenant.
+- No JWT, cada role aparece como claim **`role`** repetida.
+- **Account JSON Schemas**: criar/atualizar/apagar exige **admin**; listar/obter por id bastam utilizador do tenant.
+- **Email API**: **Send** e CRUD de templates exigem **TenantAdmin**; listar/obter template exige utilizador autenticado no tenant.
 
-## Ordem sugerida de pedidos
+## Ordem sugerida (API principal)
 
-1. **Create Tenant** → copiar `id` da resposta para `tenantId` no ambiente LOCAL.
-2. **Issue Token** com o **admin** de bootstrap (`loginUsername` / `loginPassword` alinhados ao `appsettings.Development.json`) → copiar `access_token` para `jwt` (para gerir schemas).
-3. Opcional: **Register Account** (novo `user`) — header `X-Tenant-Id` + corpo `email`, `username`, `password`.
-4. **Issue Token** com um `user` registado, se precisar de token só com permissões de utilizador.
-5. Pedidos autenticados: **Create/Update/Delete** JSON Schemas apenas com token **admin**; **List/Get** com qualquer token do tenant.
+1. **Create Tenant** → copiar `id` para `tenantId`.
+2. **Issue Token** (admin de bootstrap) → copiar `access_token` para `jwt`.
+3. Opcional: **Register Account** + novo **Issue Token** para token só `user`.
+4. Pedidos autenticados em schemas conforme roles acima.
 
-A rota legada `POST /api/tenants/{tenantId}/accounts` continua disponível; sem `X-Tenant-Id`, o tenant vem do URL.
+## Ordem sugerida (Email API)
 
-## Docker (resumo)
+1. Obter `jwt` na coleção **Lightcode.Registration** (mesmo ambiente LOCAL/DOCKER).
+2. **List Email Templates** / **Create Email Template** (admin).
+3. **Send Email** com `templateKey` ou `templateId` (admin).
 
-- Preferir o ambiente **DOCKER** em vez de editar o LOCAL.
-- Portas expostas pelo `docker-compose.yml` deste repo: API **8080**, Email API **8081**, RabbitMQ management **15672**, AMQP **5672**, Mongo **27017**.
+## Docker (resumo de portas)
+
+- API principal **8080**, Email API **8081**, RabbitMQ management **15672**, AMQP **5672**, Mongo **27017** (conforme `docker-compose.yml` deste repositório).

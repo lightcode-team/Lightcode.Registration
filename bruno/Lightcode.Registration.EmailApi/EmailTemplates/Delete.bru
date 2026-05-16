@@ -1,0 +1,19 @@
+meta {
+  name: Delete Email Template
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/email-templates/{{emailTemplateId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+docs {
+  **DELETE** `/api/email-templates/{id}` — **TenantAdmin**.
+}

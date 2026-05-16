@@ -1,0 +1,21 @@
+meta {
+  name: Get Email Template by Id
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/email-templates/{{emailTemplateId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+docs {
+  **GET** `/api/email-templates/{id}`
+
+  Defina `emailTemplateId` no ambiente (copiar de **List Email Templates**).
+}

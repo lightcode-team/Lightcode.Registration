@@ -1,0 +1,35 @@
+meta {
+  name: Create Email Template
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/email-templates
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "key": "welcome",
+    "displayName": "Boas-vindas",
+    "subject": "Bem-vindo, {{name}}",
+    "htmlBody": "<p>Olá {{name}}</p>",
+    "textBody": "Olá {{name}}"
+  }
+}
+
+docs {
+  **POST** `/api/email-templates` — **TenantAdmin**.
+
+  `key` é única por tenant. Corpo HTML/texto pode usar placeholders alinhados com `parameters` em **Send Email**.
+}

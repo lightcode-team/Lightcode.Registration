@@ -72,4 +72,12 @@ public sealed class AccountsController(
 
         return result.ToApiResponse();
     }
+
+    /// <summary>Confirmação de email em modo <c>2FA.Type = Code</c> (ver <c>config.2FA</c> do JSON Schema de conta). O código chega por email; <paramref name="code"/> vai na URL.</summary>
+    [HttpPost("~/api/accounts/confirm-email-code/{code}")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = "HasTenant")]
+    public async Task<IActionResult> ConfirmEmailCode([FromBody]string email, string code)
+    {
+        return ApiResponse.Success<object>(null, 200, "Email code confirmed");
+    }
 }

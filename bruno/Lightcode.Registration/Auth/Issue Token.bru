@@ -22,21 +22,26 @@ body:json {
   }
 }
 
+vars:pre-request {
+  loginUsername: admin
+  loginPassword: ChangeThisAdmin!12345678
+}
+
 docs {
   # Emitir JWT (login)
-
+  
   **POST** `/api/auth/token`
-
+  
   - **Header obrigatório:** `X-Tenant-Id` — id do tenant (não vai no corpo).
   - **Corpo:** `username` e `password` (utilizador na coleção `Users` do tenant).
-
+  
   ## Resposta (Data)
   - `access_token` — colar no ambiente LOCAL na variável `jwt`
   - `token_type` — `Bearer`
   - `expires_in` — segundos
-
+  
   O JWT inclui `sub` (id do utilizador em Mongo) e `tenantId`.
-
+  
   ## Erros comuns
   - `400` — falta `X-Tenant-Id` ou username/password
   - `401` — tenant inativo ou credenciais inválidas

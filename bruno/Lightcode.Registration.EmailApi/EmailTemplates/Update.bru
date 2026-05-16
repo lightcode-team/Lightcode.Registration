@@ -1,0 +1,32 @@
+meta {
+  name: Update Email Template
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/email-templates/{{emailTemplateId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "displayName": "Boas-vindas (v2)",
+    "subject": "Bem-vindo",
+    "htmlBody": "<p>Atualizado</p>",
+    "textBody": "Atualizado"
+  }
+}
+
+docs {
+  **PUT** `/api/email-templates/{id}` — **TenantAdmin**. Envie apenas os campos a alterar (todos opcionais no contrato).
+}

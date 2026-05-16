@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Lightcode.EmailApi",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

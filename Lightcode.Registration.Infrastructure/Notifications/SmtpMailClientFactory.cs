@@ -19,9 +19,14 @@ internal static class SmtpMailClientFactory
         if (string.IsNullOrWhiteSpace(smtp.EmailRemetente))
             throw new InvalidOperationException("SMTP do tenant: EmailRemetente em falta.");
 
+        // Portas de submissão (587 STARTTLS, 465 SMTPS, 2525 alternativa) exigem negociação TLS;
+        // sem EnableSsl o Gmail e a maioria dos relays públicos respondem "Must issue a STARTTLS command first".
+        var submissionPort = smtp.Port is 587 or 465 or 2525;
+        var enableSsl = smtp.UsarSsl || submissionPort;
+
         var client = new SmtpClient(smtp.Host, smtp.Port)
         {
-            EnableSsl = smtp.UsarSsl,
+            EnableSsl = enableSsl,
             Credentials = string.IsNullOrEmpty(smtp.Usuario)
                 ? CredentialCache.DefaultNetworkCredentials
                 : new NetworkCredential(smtp.Usuario, smtp.Senha)

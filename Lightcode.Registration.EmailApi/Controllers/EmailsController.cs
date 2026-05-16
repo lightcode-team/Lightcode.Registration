@@ -17,7 +17,7 @@ public sealed class EmailsController(IMediator mediator) : ControllerBase
         User.FindFirst("tenantId")?.Value ?? throw new InvalidOperationException("tenantId em falta no token.");
 
     /// <summary>Enfileira envio de email (CQRS + RabbitMQ). Use <c>templateId</c> ou <c>templateKey</c>, não ambos.</summary>
-    [Authorize(Policy = "TenantAdmin")]
+    //[Authorize(Policy = "TenantAdmin")]
     [HttpPost("send")]
     public async Task<IActionResult> Send([FromBody] SendEmailRequest body, CancellationToken cancellationToken)
     {

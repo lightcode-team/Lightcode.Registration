@@ -62,7 +62,8 @@ public static class RegistrationApiHostExtensions
                     Port = o.Port,
                     UserName = o.UserName,
                     Password = o.Password,
-                    VirtualHost = o.VirtualHost
+                    VirtualHost = o.VirtualHost,
+                    DispatchConsumersAsync = true
                 };
                 return f.CreateConnection(clientName);
             });

@@ -31,12 +31,15 @@ public static class AccountSchemaConfigParser
         if (config is null)
             return true;
 
-        if (config.Expiry is null)
-            return true;
-
-        if (config.Expiry.ExpiryRegister && config.Expiry.DaysExpiry <= 0)
+        if (config.Expiry is not null && config.Expiry.ExpiryRegister && config.Expiry.DaysExpiry <= 0)
         {
             error = "Quando Expiry.expiryRegister é true, Expiry.daysExpiry deve ser maior que zero.";
+            return false;
+        }
+
+        if (config.TwoFactor is { Active: true } && config.TwoFactor.Type is null)
+        {
+            error = "Quando 2FA.Active é true, 2FA.Type é obrigatório (Code ou Link).";
             return false;
         }
 
@@ -55,5 +58,16 @@ public static class AccountSchemaConfigParser
 
         daysExpiry = config.Expiry.DaysExpiry;
         return true;
+    }
+
+    /// <summary>Indica se o 2FA por email está ligado e devolve o modo.</summary>
+    public static bool TryGetEmailTwoFactor(string? configJson, out EmailTwoFactorType? type)
+    {
+        type = null;
+        if (!TryParseAndValidate(configJson, out var config, out _) || config?.TwoFactor is not { Active: true })
+            return false;
+
+        type = config.TwoFactor.Type;
+        return type.HasValue;
     }
 }

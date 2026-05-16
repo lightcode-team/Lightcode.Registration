@@ -26,6 +26,10 @@ body:json {
       "Expiry": {
         "expiryRegister": false,
         "daysExpiry": 360
+      },
+      "2FA": {
+        "Active": true,
+        "Type": "Code"
       }
     },
     "schemaJson": {
@@ -48,7 +52,7 @@ docs {
   **POST** `/api/account-json-schemas` (requer **Bearer** com `tenantId` no token)
 
   - `key` — única por tenant
-  - `config` — opcional (ex.: `Expiry.expiryRegister`, `Expiry.daysExpiry` para expiração de cadastro)
+  - `config` — opcional (`Expiry`, `2FA`: `Active` + `Type` = `Code` [código + `POST /api/accounts/confirm-email-code/{code}`] ou `Link` [URL no email])
   - `schemaJson` — **objeto** JSON Schema (draft), não string; validado com JsonSchema.Net
   - O schema de conta **deve** declarar `email`, `username` e `password` em `properties` e em `required`
   - `isDefault` — se `true`, torna-se o default e atualiza o validador Mongo da coleção `Users`

@@ -1,13 +1,12 @@
-using System.Text;
-using System.Text.Json;
 using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application.Contracts.Email;
 using Lightcode.Registration.Application.Emails;
 using Lightcode.Registration.Domain.Entities;
 using Lightcode.Registration.Infrastructure.Email;
-using Microsoft.Extensions.DependencyInjection;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using System.Text;
+using System.Text.Json;
 
 namespace Lightcode.Registration.Worker;
 
@@ -57,11 +56,12 @@ public sealed class EmailDispatchConsumerHostedService(
                     return;
                 }
 
-                var subject = EmailTemplatePlaceholderMerger.Merge(template.Subject, message.Parameters);
-                var html = EmailTemplatePlaceholderMerger.Merge(template.HtmlBody, message.Parameters);
-                var text = template.TextBody is null
+                var t = template;
+                var subject = EmailTemplatePlaceholderMerger.Merge(t.Subject ?? string.Empty, message.Parameters);
+                var html = EmailTemplatePlaceholderMerger.Merge(t.HtmlBody ?? string.Empty, message.Parameters);
+                var text = t.TextBody is null
                     ? null
-                    : EmailTemplatePlaceholderMerger.Merge(template.TextBody, message.Parameters);
+                    : EmailTemplatePlaceholderMerger.Merge(t.TextBody, message.Parameters);
 
                 await mailSender.SendAsync(message.TenantId, message.To, subject, html, text, stoppingToken);
                 channel.BasicAck(ea.DeliveryTag, false);
@@ -75,6 +75,7 @@ public sealed class EmailDispatchConsumerHostedService(
 
         channel.BasicConsume(EmailDispatchRabbitTopology.SendQueueName, autoAck: false, consumer: consumer);
 
+        // Manter ExecuteAsync ativo até cancelamento — igual a RegistrationExpiryReminderConsumerHostedService.
         try
         {
             await Task.Delay(Timeout.Infinite, stoppingToken);

@@ -10,6 +10,27 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 using System.Net.Sockets;
 
+static bool IsTransientRabbitFailure(Exception ex)
+{
+    if (ex is AggregateException agg)
+        return agg.Flatten().InnerExceptions.Any(IsTransientRabbitFailureCore);
+
+    return IsTransientRabbitFailureCore(ex);
+}
+
+static bool IsTransientRabbitFailureCore(Exception ex)
+{
+    for (var e = ex; e is not null; e = e.InnerException!)
+    {
+        if (e is BrokerUnreachableException)
+            return true;
+        if (e is SocketException { SocketErrorCode: SocketError.ConnectionRefused })
+            return true;
+    }
+
+    return false;
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 
 builder.Services.Configure<MongoOptions>(builder.Configuration.GetSection(MongoOptions.SectionName));
@@ -36,7 +57,9 @@ builder.Services.AddSingleton<IConnection>(sp =>
         Port = o.Port,
         UserName = o.UserName,
         Password = o.Password,
-        VirtualHost = o.VirtualHost
+        VirtualHost = o.VirtualHost,
+        // Obrigatório para AsyncEventingBasicConsumer (consumidores em EmailDispatch / Reminder).
+        DispatchConsumersAsync = true
     };
 
     const int maxAttempts = 45;
@@ -72,27 +95,6 @@ builder.Services.AddSingleton<IConnection>(sp =>
         "Confirme o serviço RabbitMQ, a rede Docker (hostname «rabbitmq») e as variáveis RabbitMQ__*.",
         lastFailure);
 });
-
-static bool IsTransientRabbitFailure(Exception ex)
-{
-    if (ex is AggregateException agg)
-        return agg.Flatten().InnerExceptions.Any(IsTransientRabbitFailureCore);
-
-    return IsTransientRabbitFailureCore(ex);
-}
-
-static bool IsTransientRabbitFailureCore(Exception ex)
-{
-    for (var e = ex; e is not null; e = e.InnerException!)
-    {
-        if (e is BrokerUnreachableException)
-            return true;
-        if (e is SocketException { SocketErrorCode: SocketError.ConnectionRefused })
-            return true;
-    }
-
-    return false;
-}
 
 builder.Services.AddSingleton<IAccountExpiryNotificationSender>(sp =>
 {
