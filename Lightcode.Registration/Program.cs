@@ -1,5 +1,7 @@
 using Lightcode.Registration.AspNetCore.Hosting;
 
+RegistrationHostEnvironment.LoadDotEnvIfPresent();
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddRegistrationApiHost();

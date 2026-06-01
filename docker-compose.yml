@@ -42,14 +42,12 @@ services:
         condition: service_healthy
     ports:
       - "8080:8080"
+    env_file:
+      - ./Lightcode.Registration/.env
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       Mongo__ConnectionString: mongodb://mongo:27017
-      Mongo__MasterDatabaseName: SaasMasterDb
-      # Gere um segredo forte na VPS; mínimo 32 caracteres
-      Jwt__SigningKey: "${JWT_SIGNING_KEY:-CHANGE_ME_USE_ENV_IN_PROD_MIN_32_CHARS!!}"
-      Master__ProvisioningApiKey: "${MASTER_PROVISIONING_KEY:-}"
 
   email-api:
     build:
@@ -63,17 +61,13 @@ services:
         condition: service_healthy
     ports:
       - "8081:8080"
+    env_file:
+      - ./Lightcode.Registration.EmailApi/.env
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       Mongo__ConnectionString: mongodb://mongo:27017
-      Mongo__MasterDatabaseName: SaasMasterDb
       RabbitMQ__HostName: rabbitmq
-      RabbitMQ__Port: "5672"
-      RabbitMQ__UserName: guest
-      RabbitMQ__Password: guest
-      Jwt__SigningKey: "${JWT_SIGNING_KEY:-CHANGE_ME_USE_ENV_IN_PROD_MIN_32_CHARS!!}"
-      Master__ProvisioningApiKey: "${MASTER_PROVISIONING_KEY:-}"
 
   worker:
     build:
