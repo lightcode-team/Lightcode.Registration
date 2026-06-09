@@ -5,4 +5,8 @@ public interface ISecureTokenGenerator
     string GenerateRefreshToken();
 
     string GenerateClientSecret();
+
+    string GenerateEmailConfirmationCode();
+
+    string GenerateEmailConfirmationToken();
 }

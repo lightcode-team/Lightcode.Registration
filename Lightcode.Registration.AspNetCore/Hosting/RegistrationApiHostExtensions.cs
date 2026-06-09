@@ -38,6 +38,8 @@ public static class RegistrationApiHostExtensions
         builder.Services.Configure<MasterOptions>(builder.Configuration.GetSection(MasterOptions.SectionName));
         builder.Services.Configure<TenantDefaultSmtpOptions>(
             builder.Configuration.GetSection(TenantDefaultSmtpOptions.SectionName));
+        builder.Services.Configure<RegistrationOptions>(
+            builder.Configuration.GetSection(RegistrationOptions.SectionName));
 
         if (hostOptions.RegisterRabbitMqConnection)
             builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));

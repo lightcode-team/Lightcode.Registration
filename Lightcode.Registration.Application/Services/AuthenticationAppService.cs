@@ -1,4 +1,5 @@
 using Lightcode.Registration.Application.Abstractions;
+using Lightcode.Registration.Application.Accounts;
 using Lightcode.Registration.Application.Common;
 using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Contracts.Auth;
@@ -10,6 +11,7 @@ namespace Lightcode.Registration.Application.Services;
 public sealed class AuthenticationAppService(
     ITenantLookup tenantLookup,
     IUserCredentialValidator credentialValidator,
+    IUserAccountWriter userAccountWriter,
     IOAuthClientRepository oauthClientRepository,
     IRefreshTokenRepository refreshTokenRepository,
     IAccessTokenIssuer accessTokenIssuer,
@@ -64,15 +66,23 @@ public sealed class AuthenticationAppService(
             return ServiceResult<IssueTokenResponse>.Fail(400, "Username e password são obrigatórios para grant_type=password.");
 
         var normalizedUsername = request.Username.Trim().ToLowerInvariant();
-        var credentials = await credentialValidator.ValidateAsync(
+        var outcome = await credentialValidator.ValidateAsync(
             tenantId,
             normalizedUsername,
             request.Password,
             cancellationToken);
 
-        if (credentials is null)
-            return ServiceResult<IssueTokenResponse>.Fail(401, "Credenciais inválidas.");
+        if (!outcome.IsSuccess)
+        {
+            return outcome.Failure switch
+            {
+                CredentialValidationFailure.EmailNotConfirmed =>
+                    ServiceResult<IssueTokenResponse>.Fail(403, "Confirme o email antes de entrar."),
+                _ => ServiceResult<IssueTokenResponse>.Fail(401, "Credenciais inválidas.")
+            };
+        }
 
+        var credentials = outcome.Success!;
         var profile = TokenIssuanceProfile.ForPasswordGrant(jwtOptions.Value, tenantId, credentials.Roles);
         return await IssueTokensAsync(tenantId, profile, credentials.UserId, TokenSubjectTypes.User, cancellationToken);
     }
@@ -96,6 +106,13 @@ public sealed class AuthenticationAppService(
         var incremented = await refreshTokenRepository.TryIncrementUseCountAsync(tenantId, stored.Id, cancellationToken);
         if (!incremented)
             return ServiceResult<IssueTokenResponse>.Fail(401, "Refresh token inválido, expirado ou esgotado.");
+
+        if (string.Equals(stored.SubjectType, TokenSubjectTypes.User, StringComparison.Ordinal))
+        {
+            var status = await userAccountWriter.GetUserStatusAsync(tenantId, stored.SubjectId, cancellationToken);
+            if (status is not AccountStatuses.Active)
+                return ServiceResult<IssueTokenResponse>.Fail(401, "Conta inativa ou email não confirmado.");
+        }
 
         var profile = await ResolveRefreshProfileAsync(tenantId, stored, cancellationToken);
         if (profile is null)

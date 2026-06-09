@@ -18,6 +18,7 @@ public sealed class AccountUpdateAppService(
     private static readonly HashSet<string> BlockedPatchKeys =
     [
         "_id",
+        AccountUserFields.SchemaId,
         "status",
         "registrationExpiresAtUtc",
         "expiryReminder30SentUtc",
@@ -44,10 +45,6 @@ public sealed class AccountUpdateAppService(
         if (!isAdmin && !string.Equals(actorUserId.Trim(), targetUserId.Trim(), StringComparison.OrdinalIgnoreCase))
             return ServiceResult<UpdateAccountResult>.Fail(403, "Só pode alterar a sua própria conta ou ser administrador.");
 
-        var schemaEntity = await schemaRepository.GetDefaultAsync(tenant.Id, cancellationToken);
-        if (schemaEntity is null)
-            return ServiceResult<UpdateAccountResult>.Fail(400, "Não existe schema default de conta para este tenant.");
-
         var existingJson = await userAccountWriter.GetUserDocumentJsonAsync(tenant.Id, targetUserId.Trim(), cancellationToken);
         if (existingJson is null)
             return ServiceResult<UpdateAccountResult>.Fail(404, "Conta não encontrada.");
@@ -66,6 +63,14 @@ public sealed class AccountUpdateAppService(
 
         if (existingRoot is not JsonObject existingObj)
             return ServiceResult<UpdateAccountResult>.Fail(400, "Documento de utilizador inválido.");
+
+        var schemaEntity = await AccountRegistrationRequestHelper.ResolveSchemaForUserAsync(
+            schemaRepository,
+            tenant.Id,
+            existingObj,
+            cancellationToken);
+        if (schemaEntity is null)
+            return ServiceResult<UpdateAccountResult>.Fail(400, "Schema de conta não encontrado para este utilizador.");
 
         if (patchObj is null || patchObj.Count == 0)
             return ServiceResult<UpdateAccountResult>.Fail(400, "Corpo de atualização deve ser um objeto com pelo menos uma propriedade.");
@@ -152,7 +157,12 @@ public sealed class AccountUpdateAppService(
         if (passwordFromPatchPlain && merged["password"] is JsonValue passVal && passVal.TryGetValue<string>(out var plainPw))
             merged["password"] = passwordHasher.Hash(plainPw);
 
-        if (AccountSchemaConfigParser.TryGetRegistrationExpiry(schemaEntity.ConfigJson, out var renewalDays))
+        var currentStatus = existingObj["status"] is JsonValue statusNode && statusNode.TryGetValue<string>(out var statusValue)
+            ? statusValue
+            : AccountStatuses.Active;
+
+        if (currentStatus != AccountStatuses.PendingConfirmation
+            && AccountSchemaConfigParser.TryGetRegistrationExpiry(schemaEntity.ConfigJson, out var renewalDays))
         {
             merged["status"] = JsonValue.Create(AccountStatuses.Active);
             merged["registrationExpiresAtUtc"] = JsonValue.Create(DateTime.UtcNow.AddDays(renewalDays));

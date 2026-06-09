@@ -1,4 +1,5 @@
 using Lightcode.Registration.Application.Abstractions;
+using Lightcode.Registration.Application.Accounts;
 using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Registration;
 using Lightcode.Registration.Application.Security;
@@ -92,6 +93,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
             await _usersSchemaApplier.ApplyAsync(tenant.Id, mongoInner, cancellationToken);
 
         await SeedClientCredentialsEmailTemplateAsync(tenant, now, cancellationToken);
+        await SeedEmailConfirmationTemplatesAsync(tenant, now, cancellationToken);
 
         var clientId = $"client_{tenantId}";
         var clientSecret = _tokenGenerator.GenerateClientSecret();
@@ -175,6 +177,62 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
         };
 
         await _emailTemplates.InsertOneAsync(template, cancellationToken: cancellationToken);
+    }
+
+    private async Task SeedEmailConfirmationTemplatesAsync(
+        Tenant tenant,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var codeTemplate = new EmailTemplate
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            TenantId = tenant.Id,
+            Key = AccountEmailConfirmationFields.CodeTemplateKey,
+            DisplayName = "Confirmação de email (código)",
+            Subject = "Confirme o seu email — {{username}}",
+            HtmlBody = """
+                <p>Olá <strong>{{username}}</strong>,</p>
+                <p>O seu código de confirmação é: <strong>{{code}}</strong></p>
+                <p>O código expira em 30 minutos.</p>
+                """,
+            TextBody = """
+                Olá {{username}},
+
+                O seu código de confirmação é: {{code}}
+
+                O código expira em 30 minutos.
+                """,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        var linkTemplate = new EmailTemplate
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            TenantId = tenant.Id,
+            Key = AccountEmailConfirmationFields.LinkTemplateKey,
+            DisplayName = "Confirmação de email (link)",
+            Subject = "Confirme o seu email — {{username}}",
+            HtmlBody = """
+                <p>Olá <strong>{{username}}</strong>,</p>
+                <p>Clique no link para confirmar o seu email:</p>
+                <p><a href="{{confirmationLink}}">{{confirmationLink}}</a></p>
+                <p>O link expira em 30 minutos.</p>
+                """,
+            TextBody = """
+                Olá {{username}},
+
+                Confirme o seu email através do link:
+                {{confirmationLink}}
+
+                O link expira em 30 minutos.
+                """,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        await _emailTemplates.InsertManyAsync([codeTemplate, linkTemplate], cancellationToken: cancellationToken);
     }
 
     private async Task SeedTenantSmtpSettingsAsync(string tenantDatabaseName, CancellationToken cancellationToken)

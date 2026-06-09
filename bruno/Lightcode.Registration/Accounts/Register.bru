@@ -16,6 +16,7 @@ headers {
 
 body:json {
   {
+    "schemaId": "{{schemaId}}",
     "email": "frederick.aquino23@gmail.com",
     "password": "Python90!@",
     "username": "frederick.aquino23@gmail.com",
@@ -42,7 +43,10 @@ docs {
   - Password é persistida como hash (PBKDF2)
   - Email normalizado (minúsculas)
   - `409` se email já existir na coleção `Users` do tenant
+  - Com `config.2FA.Active = true`: conta fica `PendingConfirmation` e email de confirmação é enfileirado
   
   ## Resposta (Data)
-  - `message` — confirmação
+  - `id` — identificador da conta
+  - `requiresEmailConfirmation` — true quando 2FA ativo
+  - `confirmationUrl` — URL do frontend com `code=` vazio (modo Code + `confirmationReturnUrl`)
 }

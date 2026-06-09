@@ -1,4 +1,5 @@
 using Lightcode.Registration.Application.Abstractions;
+using Lightcode.Registration.Application.Accounts;
 using Lightcode.Registration.Application.Services;
 using Lightcode.Registration.Infrastructure.Email;
 using Lightcode.Registration.Infrastructure.Hosting;
@@ -44,9 +45,11 @@ public static class DependencyInjection
         services.AddScoped<ITenantOnboardingAppService, TenantOnboardingAppService>();
         services.AddScoped<IWeatherForecastAppService, WeatherForecastAppService>();
         services.AddScoped<IAccountJsonSchemaAppService, AccountJsonSchemaAppService>();
+        services.AddScoped<AccountRegistrationTwoFactorSupport>();
         services.AddScoped<IAccountRegistrationAppService, AccountRegistrationAppService>();
         services.AddScoped<IAccountAdminAppService, AccountAdminAppService>();
         services.AddScoped<IAccountUpdateAppService, AccountUpdateAppService>();
+        services.AddScoped<IAccountEmailConfirmationAppService, AccountEmailConfirmationAppService>();
 
         services.AddScoped<ITenantSmtpSettingsRepository, MongoTenantSmtpSettingsRepository>();
         services.AddScoped<IEmailTemplateRepository, MongoEmailTemplateRepository>();

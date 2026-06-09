@@ -1,0 +1,39 @@
+meta {
+  name: Confirm Email Code
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/api/accounts/confirm-email-code/{{emailConfirmationCode}}
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Tenant-Id: {{tenantId}}
+}
+
+body:json {
+  {
+    "email": "{{registerEmail}}"
+  }
+}
+
+vars:pre-request {
+  registerEmail: papahas17@aquas.live
+  emailConfirmationCode: 953886
+}
+
+docs {
+  # Confirmar email (modo Code)
+  
+  **POST** `/api/accounts/confirm-email-code/{code}`
+  
+  Requer cabeçalho `X-Tenant-Id`. O código chega por email após registo com `config.2FA.Type = Code`.
+  
+  ## Variáveis
+  - `emailConfirmationCode` — código de 6 dígitos recebido por email
+  - `registerEmail` — email usado no registo
+}

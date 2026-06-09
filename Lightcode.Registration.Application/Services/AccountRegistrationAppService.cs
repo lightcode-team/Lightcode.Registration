@@ -13,7 +13,8 @@ public sealed class AccountRegistrationAppService(
     IAccountJsonSchemaRepository schemaRepository,
     IJsonSchemaValidationService jsonSchemaValidation,
     IUserAccountWriter userAccountWriter,
-    IPasswordHasher passwordHasher) : IAccountRegistrationAppService
+    IPasswordHasher passwordHasher,
+    AccountRegistrationTwoFactorSupport twoFactorSupport) : IAccountRegistrationAppService
 {
     public async Task<ServiceResult<RegisterAccountResult>> RegisterAsync(
         string tenantId,
@@ -27,14 +28,6 @@ public sealed class AccountRegistrationAppService(
         if (tenant is null)
             return ServiceResult<RegisterAccountResult>.Fail(404, "Tenant não encontrado ou inativo.");
 
-        var schemaEntity = await schemaRepository.GetDefaultAsync(tenant.Id, cancellationToken);
-        if (schemaEntity is null)
-            return ServiceResult<RegisterAccountResult>.Fail(400, "Não existe schema default de conta. Configure um em /api/account-json-schemas.");
-
-        var errors = jsonSchemaValidation.Validate(schemaEntity.SchemaJson, requestJson);
-        if (errors.Count > 0)
-            return ServiceResult<RegisterAccountResult>.Fail(400, errors.ToArray());
-
         JsonNode? root;
         try
         {
@@ -47,6 +40,34 @@ public sealed class AccountRegistrationAppService(
 
         if (root is not JsonObject obj)
             return ServiceResult<RegisterAccountResult>.Fail(400, "O registo deve ser um objeto JSON.");
+
+        if (!AccountRegistrationRequestHelper.TryExtractSchemaId(obj, out var schemaId, out var schemaIdError))
+            return ServiceResult<RegisterAccountResult>.Fail(400, schemaIdError!);
+
+        var schemaResult = await AccountRegistrationRequestHelper.ResolveSchemaAsync(
+            schemaRepository,
+            tenant.Id,
+            schemaId,
+            cancellationToken);
+        if (!schemaResult.IsSuccess)
+            return ServiceResult<RegisterAccountResult>.Fail(schemaResult.StatusCode, schemaResult.Errors.ToArray());
+
+        var schemaEntity = schemaResult.Value!;
+
+        string? confirmationReturnUrl = null;
+        if (obj["confirmationReturnUrl"] is JsonValue returnUrlNode
+            && returnUrlNode.TryGetValue<string>(out var returnUrl)
+            && !string.IsNullOrWhiteSpace(returnUrl))
+            confirmationReturnUrl = returnUrl.Trim();
+
+        obj.Remove("confirmationReturnUrl");
+        obj.Remove("role");
+        obj.Remove("roles");
+
+        var cleanedJson = obj.ToJsonString();
+        var errors = jsonSchemaValidation.Validate(schemaEntity.SchemaJson, cleanedJson);
+        if (errors.Count > 0)
+            return ServiceResult<RegisterAccountResult>.Fail(400, errors.ToArray());
 
         if (obj["email"] is not JsonValue emailNode || !emailNode.TryGetValue<string>(out var email) || string.IsNullOrWhiteSpace(email))
             return ServiceResult<RegisterAccountResult>.Fail(400, "Campo email em falta ou inválido.");
@@ -68,28 +89,39 @@ public sealed class AccountRegistrationAppService(
         if (await userAccountWriter.UsernameExistsAsync(tenant.Id, username, cancellationToken))
             return ServiceResult<RegisterAccountResult>.Fail(409, "Já existe uma conta com este nome de utilizador.");
 
-        obj.Remove("role");
-        obj.Remove("roles");
-
+        obj[AccountUserFields.SchemaId] = schemaId;
         obj["password"] = passwordHasher.Hash(plain);
         obj["email"] = email;
         obj["username"] = username;
         obj["roles"] = new JsonArray(JsonValue.Create(UserRoles.User));
         obj["createdAtUtc"] = JsonValue.Create(DateTime.UtcNow);
-        obj["status"] = JsonValue.Create(AccountStatuses.Active);
 
         if (AccountSchemaConfigParser.TryGetRegistrationExpiry(config, out var daysExpiry))
-        {
-            var expires = DateTime.UtcNow.AddDays(daysExpiry);
-            obj["registrationExpiresAtUtc"] = JsonValue.Create(expires);
-        }
+            obj["registrationExpiresAtUtc"] = JsonValue.Create(DateTime.UtcNow.AddDays(daysExpiry));
+
+        var twoFactorResult = await twoFactorSupport.ApplyAsync(
+            obj,
+            config,
+            tenant.Id,
+            email,
+            username,
+            confirmationReturnUrl,
+            cancellationToken);
 
         var toSave = obj.ToJsonString();
         var userId = await userAccountWriter.InsertAsync(tenant.Id, toSave, cancellationToken);
 
+        var message = twoFactorResult.RequiresEmailConfirmation
+            ? "Conta criada. Confirme o email para ativar."
+            : "Conta criada com sucesso.";
+
         return ServiceResult<RegisterAccountResult>.Ok(
-            new RegisterAccountResult(userId),
+            new RegisterAccountResult(
+                userId,
+                schemaId,
+                twoFactorResult.RequiresEmailConfirmation,
+                twoFactorResult.ConfirmationUrl),
             201,
-            "Conta criada com sucesso.");
+            message);
     }
 }

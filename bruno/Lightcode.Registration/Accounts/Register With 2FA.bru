@@ -1,0 +1,42 @@
+meta {
+  name: Register With 2FA
+  type: http
+  seq: 12
+}
+
+post {
+  url: {{baseUrl}}/api/accounts
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Tenant-Id: {{tenantId}}
+}
+
+body:json {
+  {
+    "schemaId": "{{schemaId}}",
+    "email": "{{registerEmail}}",
+    "password": "{{registerPassword}}",
+    "username": "{{registerUsername}}",
+    "confirmationReturnUrl": "{{confirmationReturnUrl}}"
+  }
+}
+
+docs {
+  # Registar conta com 2FA por email
+
+  **POST** `/api/accounts` com cabeçalho `X-Tenant-Id`
+
+  Requer schema default com `config.2FA.Active = true`.
+
+  ## Variáveis sugeridas
+  - `registerEmail`, `registerPassword`, `registerUsername`
+  - `confirmationReturnUrl` — URL do frontend (ex.: https://app.example/confirm)
+
+  ## Resposta (modo Code)
+  - `requiresEmailConfirmation`: true
+  - `confirmationUrl` — URL com `code=` vazio para o frontend preencher
+}

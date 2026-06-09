@@ -1,0 +1,23 @@
+meta {
+  name: List Accounts (admin)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/accounts
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+docs {
+  # Listar contas (admin)
+
+  **GET** `/api/accounts`
+
+  Requer JWT com role `admin` ou scope `owner`.
+}

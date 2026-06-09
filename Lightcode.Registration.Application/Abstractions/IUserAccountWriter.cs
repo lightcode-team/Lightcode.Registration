@@ -37,4 +37,16 @@ public interface IUserAccountWriter
 
     /// <summary>Define <c>status</c> como Expired se a conta estiver Active e a data de expiração já tiver passado.</summary>
     Task<bool> TryMarkRegistrationExpiredAsync(string tenantId, string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Confirma email por código ou token; ativa a conta se válido.</summary>
+    Task<bool> TryConfirmEmailAsync(
+        string tenantId,
+        string email,
+        string secretPlain,
+        CancellationToken cancellationToken = default);
+
+    /// <returns><c>status</c> do documento ou <c>null</c> se não existir.</returns>
+    Task<string?> GetUserStatusAsync(string tenantId, string userId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<string>> ListUserDocumentsJsonAsync(string tenantId, CancellationToken cancellationToken = default);
 }

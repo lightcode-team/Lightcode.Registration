@@ -12,7 +12,7 @@ public sealed class UserCredentialValidator(
     ITenantLookup tenantLookup,
     IPasswordHasher passwordHasher) : IUserCredentialValidator
 {
-    public async Task<CredentialValidationResult?> ValidateAsync(
+    public async Task<CredentialValidationOutcome> ValidateAsync(
         string tenantId,
         string username,
         string password,
@@ -20,31 +20,38 @@ public sealed class UserCredentialValidator(
     {
         var tenant = await tenantLookup.FindActiveByIdAsync(tenantId, cancellationToken);
         if (tenant is null)
-            return null;
+            return CredentialValidationOutcome.Failed(CredentialValidationFailure.InvalidCredentials);
 
         var coll = client.GetDatabase(tenant.DatabaseName).GetCollection<BsonDocument>("Users");
         var doc = await coll.Find(new BsonDocument("username", username)).FirstOrDefaultAsync(cancellationToken);
         if (doc is null || !doc.Contains("password"))
-            return null;
+            return CredentialValidationOutcome.Failed(CredentialValidationFailure.InvalidCredentials);
 
         var stored = doc["password"].IsString ? doc["password"].AsString : null;
         if (string.IsNullOrEmpty(stored) || !passwordHasher.Verify(password, stored))
-            return null;
+            return CredentialValidationOutcome.Failed(CredentialValidationFailure.InvalidCredentials);
 
-        if (doc.Contains("status") && doc["status"].IsString && doc["status"].AsString == AccountStatuses.Expired)
-            return null;
+        if (doc.Contains("status") && doc["status"].IsString)
+        {
+            var status = doc["status"].AsString;
+            if (status == AccountStatuses.Expired)
+                return CredentialValidationOutcome.Failed(CredentialValidationFailure.Expired);
+
+            if (status == AccountStatuses.PendingConfirmation)
+                return CredentialValidationOutcome.Failed(CredentialValidationFailure.EmailNotConfirmed);
+        }
 
         if (doc.Contains("registrationExpiresAtUtc") && doc["registrationExpiresAtUtc"].IsValidDateTime)
         {
             var expiresUtc = doc["registrationExpiresAtUtc"].ToUniversalTime();
             if (expiresUtc < DateTime.UtcNow)
-                return null;
+                return CredentialValidationOutcome.Failed(CredentialValidationFailure.Expired);
         }
 
         var userId = doc["_id"].ToString()!;
         var roles = ReadRolesFromUserDocument(doc);
 
-        return new CredentialValidationResult(userId, roles);
+        return CredentialValidationOutcome.Succeeded(new CredentialValidationResult(userId, roles));
     }
 
     private static IReadOnlyList<string> ReadRolesFromUserDocument(BsonDocument doc)

@@ -1,12 +1,16 @@
 using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application.Accounts;
+using Lightcode.Registration.Application.Security;
 using MongoDB.Bson;
 using MongoDB.Bson.IO;
 using MongoDB.Driver;
 
 namespace Lightcode.Registration.Infrastructure.Persistence.Mongo;
 
-public sealed class UserAccountMongoWriter(IMongoClient client, ITenantLookup tenantLookup) : IUserAccountWriter
+public sealed class UserAccountMongoWriter(
+    IMongoClient client,
+    ITenantLookup tenantLookup,
+    IPasswordHasher passwordHasher) : IUserAccountWriter
 {
     private static readonly JsonWriterSettings RelaxedJsonWriterSettings = new()
     {
@@ -191,5 +195,91 @@ public sealed class UserAccountMongoWriter(IMongoClient client, ITenantLookup te
         var update = Builders<BsonDocument>.Update.Set("status", AccountStatuses.Expired);
         var result = await coll.UpdateOneAsync(filter, update, cancellationToken: cancellationToken);
         return result.ModifiedCount > 0;
+    }
+
+    public async Task<bool> TryConfirmEmailAsync(
+        string tenantId,
+        string email,
+        string secretPlain,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = await tenantLookup.FindActiveByIdAsync(tenantId, cancellationToken);
+        if (tenant is null)
+            return false;
+
+        var coll = client.GetDatabase(tenant.DatabaseName).GetCollection<BsonDocument>("Users");
+        var filter = Builders<BsonDocument>.Filter.And(
+            Builders<BsonDocument>.Filter.Eq("email", email),
+            Builders<BsonDocument>.Filter.Eq("status", AccountStatuses.PendingConfirmation));
+
+        var doc = await coll.Find(filter).FirstOrDefaultAsync(cancellationToken);
+        if (doc is null)
+            return false;
+
+        if (!doc.Contains(AccountEmailConfirmationFields.SecretHash)
+            || !doc[AccountEmailConfirmationFields.SecretHash].IsString)
+            return false;
+
+        var storedHash = doc[AccountEmailConfirmationFields.SecretHash].AsString;
+        if (!passwordHasher.Verify(secretPlain, storedHash))
+            return false;
+
+        if (doc.Contains(AccountEmailConfirmationFields.ExpiresAtUtc)
+            && doc[AccountEmailConfirmationFields.ExpiresAtUtc].IsValidDateTime)
+        {
+            var expiresUtc = doc[AccountEmailConfirmationFields.ExpiresAtUtc].ToUniversalTime();
+            if (expiresUtc < DateTime.UtcNow)
+                return false;
+        }
+
+        var update = Builders<BsonDocument>.Update
+            .Set("status", AccountStatuses.Active)
+            .Unset(AccountEmailConfirmationFields.SecretHash)
+            .Unset(AccountEmailConfirmationFields.ExpiresAtUtc);
+
+        var result = await coll.UpdateOneAsync(
+            Builders<BsonDocument>.Filter.Eq("_id", doc["_id"]),
+            update,
+            cancellationToken: cancellationToken);
+
+        return result.ModifiedCount > 0;
+    }
+
+    public async Task<string?> GetUserStatusAsync(
+        string tenantId,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!ObjectId.TryParse(userId, out var oid))
+            return null;
+
+        var tenant = await tenantLookup.FindActiveByIdAsync(tenantId, cancellationToken);
+        if (tenant is null)
+            return null;
+
+        var coll = client.GetDatabase(tenant.DatabaseName).GetCollection<BsonDocument>("Users");
+        var projection = Builders<BsonDocument>.Projection.Include("status");
+        var doc = await coll.Find(Builders<BsonDocument>.Filter.Eq("_id", oid))
+            .Project(projection)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (doc is null || !doc.Contains("status") || !doc["status"].IsString)
+            return null;
+
+        return doc["status"].AsString;
+    }
+
+    public async Task<IReadOnlyList<string>> ListUserDocumentsJsonAsync(
+        string tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = await tenantLookup.FindActiveByIdAsync(tenantId, cancellationToken);
+        if (tenant is null)
+            return [];
+
+        var coll = client.GetDatabase(tenant.DatabaseName).GetCollection<BsonDocument>("Users");
+        using var cursor = await coll.FindAsync(FilterDefinition<BsonDocument>.Empty, cancellationToken: cancellationToken);
+        var docs = await cursor.ToListAsync(cancellationToken);
+        return docs.Select(d => d.ToJson(RelaxedJsonWriterSettings)).ToList();
     }
 }

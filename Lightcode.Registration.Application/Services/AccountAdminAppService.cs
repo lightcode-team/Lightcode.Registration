@@ -13,63 +13,180 @@ public sealed class AccountAdminAppService(
     IAccountJsonSchemaRepository schemaRepository,
     IJsonSchemaValidationService jsonSchemaValidation,
     IUserAccountWriter userAccountWriter,
-    IPasswordHasher passwordHasher) : IAccountAdminAppService
+    IPasswordHasher passwordHasher,
+    AccountRegistrationTwoFactorSupport twoFactorSupport) : IAccountAdminAppService
 {
     public async Task<ServiceResult<RegisterAccountResult>> RegisterByAdminAsync(
         string tenantId,
-        AdminRegisterAccountRequest request,
+        string requestJson,
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(tenantId))
             return ServiceResult<RegisterAccountResult>.Fail(400, "TenantId é obrigatório.");
 
-        if (string.IsNullOrWhiteSpace(request.Email)
-            || string.IsNullOrWhiteSpace(request.Username)
-            || string.IsNullOrWhiteSpace(request.Password))
-            return ServiceResult<RegisterAccountResult>.Fail(400, "Email, username e password são obrigatórios.");
-
-        if (request.Roles is null || request.Roles.Count == 0)
-            return ServiceResult<RegisterAccountResult>.Fail(400, "Roles é obrigatório e deve conter pelo menos um valor.");
-
         var tenant = await tenantLookup.FindActiveByIdAsync(tenantId.Trim(), cancellationToken);
         if (tenant is null)
             return ServiceResult<RegisterAccountResult>.Fail(404, "Tenant não encontrado ou inativo.");
 
-        var schemaEntity = await schemaRepository.GetDefaultAsync(tenant.Id, cancellationToken);
-        if (schemaEntity is null)
-            return ServiceResult<RegisterAccountResult>.Fail(400, "Não existe schema default de conta. Configure um em /api/account-json-schemas.");
+        JsonNode? root;
+        try
+        {
+            root = JsonNode.Parse(requestJson);
+        }
+        catch
+        {
+            return ServiceResult<RegisterAccountResult>.Fail(400, "Corpo JSON inválido.");
+        }
+
+        if (root is not JsonObject obj)
+            return ServiceResult<RegisterAccountResult>.Fail(400, "O registo deve ser um objeto JSON.");
+
+        if (!AccountRegistrationRequestHelper.TryExtractSchemaId(obj, out var schemaId, out var schemaIdError))
+            return ServiceResult<RegisterAccountResult>.Fail(400, schemaIdError!);
+
+        var schemaResult = await AccountRegistrationRequestHelper.ResolveSchemaAsync(
+            schemaRepository,
+            tenant.Id,
+            schemaId,
+            cancellationToken);
+        if (!schemaResult.IsSuccess)
+            return ServiceResult<RegisterAccountResult>.Fail(schemaResult.StatusCode, schemaResult.Errors.ToArray());
+
+        var schemaEntity = schemaResult.Value!;
+
+        string? confirmationReturnUrl = null;
+        if (obj["confirmationReturnUrl"] is JsonValue returnUrlNode
+            && returnUrlNode.TryGetValue<string>(out var returnUrl)
+            && !string.IsNullOrWhiteSpace(returnUrl))
+            confirmationReturnUrl = returnUrl.Trim();
+
+        obj.Remove("confirmationReturnUrl");
+        obj.Remove("scope");
+        obj.Remove("role");
+
+        var validationJson = obj.ToJsonString();
+        var validationErrors = jsonSchemaValidation.Validate(schemaEntity.SchemaJson, validationJson);
+        if (validationErrors.Count > 0)
+            return ServiceResult<RegisterAccountResult>.Fail(400, validationErrors.ToArray());
+
+        if (obj["email"] is not JsonValue emailNode || !emailNode.TryGetValue<string>(out var email) || string.IsNullOrWhiteSpace(email))
+            return ServiceResult<RegisterAccountResult>.Fail(400, "Campo email em falta ou inválido.");
+
+        if (obj["username"] is not JsonValue userNode || !userNode.TryGetValue<string>(out var username) || string.IsNullOrWhiteSpace(username))
+            return ServiceResult<RegisterAccountResult>.Fail(400, "Campo username em falta ou inválido.");
+
+        if (obj["password"] is not JsonValue passNode || !passNode.TryGetValue<string>(out var plain) || string.IsNullOrWhiteSpace(plain))
+            return ServiceResult<RegisterAccountResult>.Fail(400, "Campo password em falta ou inválido.");
+
+        if (obj["roles"] is not JsonArray rolesNode || rolesNode.Count == 0)
+            return ServiceResult<RegisterAccountResult>.Fail(400, "Roles é obrigatório e deve conter pelo menos um valor.");
+
+        var rawRoles = rolesNode
+            .Where(n => n is JsonValue v && v.TryGetValue<string>(out _))
+            .Select(n => ((JsonValue)n!).GetValue<string>()!)
+            .ToList();
+
+        email = email.Trim().ToLowerInvariant();
+        username = username.Trim().ToLowerInvariant();
+        var roles = UserRoles.NormalizeAccountRoles(rawRoles);
 
         var config = schemaEntity.GetConfig();
-        var email = request.Email.Trim().ToLowerInvariant();
-        var username = request.Username.Trim().ToLowerInvariant();
-        var roles = UserRoles.NormalizeAccountRoles(request.Roles);
-
         if (config.ValidateDuplicateEmail && await userAccountWriter.EmailExistsAsync(tenant.Id, email, cancellationToken))
             return ServiceResult<RegisterAccountResult>.Fail(409, "Já existe uma conta com este email.");
 
         if (await userAccountWriter.UsernameExistsAsync(tenant.Id, username, cancellationToken))
             return ServiceResult<RegisterAccountResult>.Fail(409, "Já existe uma conta com este nome de utilizador.");
 
-        var obj = new JsonObject
-        {
-            ["email"] = email,
-            ["username"] = username,
-            ["password"] = passwordHasher.Hash(request.Password),
-            ["roles"] = new JsonArray(roles.Select(r => JsonValue.Create(r)!).ToArray()),
-            ["createdAtUtc"] = JsonValue.Create(DateTime.UtcNow),
-            ["status"] = JsonValue.Create(AccountStatuses.Active)
-        };
+        obj[AccountUserFields.SchemaId] = schemaId;
+        obj["email"] = email;
+        obj["username"] = username;
+        obj["password"] = passwordHasher.Hash(plain);
+        obj["roles"] = new JsonArray(roles.Select(r => JsonValue.Create(r)!).ToArray());
+        obj["createdAtUtc"] = JsonValue.Create(DateTime.UtcNow);
 
         if (AccountSchemaConfigParser.TryGetRegistrationExpiry(config, out var daysExpiry))
             obj["registrationExpiresAtUtc"] = JsonValue.Create(DateTime.UtcNow.AddDays(daysExpiry));
 
-        var toSave = obj.ToJsonString();
-        var errors = jsonSchemaValidation.Validate(schemaEntity.SchemaJson, toSave);
-        if (errors.Count > 0)
-            return ServiceResult<RegisterAccountResult>.Fail(400, errors.ToArray());
+        var twoFactorResult = await twoFactorSupport.ApplyAsync(
+            obj,
+            config,
+            tenant.Id,
+            email,
+            username,
+            confirmationReturnUrl,
+            cancellationToken);
 
+        var toSave = obj.ToJsonString();
         var userId = await userAccountWriter.InsertAsync(tenant.Id, toSave, cancellationToken);
-        return ServiceResult<RegisterAccountResult>.Ok(new RegisterAccountResult(userId), 201, "Conta criada com sucesso.");
+
+        var message = twoFactorResult.RequiresEmailConfirmation
+            ? "Conta criada. Confirme o email para ativar."
+            : "Conta criada com sucesso.";
+
+        return ServiceResult<RegisterAccountResult>.Ok(
+            new RegisterAccountResult(
+                userId,
+                schemaId,
+                twoFactorResult.RequiresEmailConfirmation,
+                twoFactorResult.ConfirmationUrl),
+            201,
+            message);
+    }
+
+    public async Task<ServiceResult<IReadOnlyList<UserAccountListItemDto>>> ListAsync(
+        string tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
+            return ServiceResult<IReadOnlyList<UserAccountListItemDto>>.Fail(400, "TenantId é obrigatório.");
+
+        var tenant = await tenantLookup.FindActiveByIdAsync(tenantId.Trim(), cancellationToken);
+        if (tenant is null)
+            return ServiceResult<IReadOnlyList<UserAccountListItemDto>>.Fail(404, "Tenant não encontrado ou inativo.");
+
+        var documents = await userAccountWriter.ListUserDocumentsJsonAsync(tenant.Id, cancellationToken);
+        var items = new List<UserAccountListItemDto>();
+
+        foreach (var json in documents)
+        {
+            if (JsonNode.Parse(json) is not JsonObject obj)
+                continue;
+
+            var item = UserAccountApiSanitizer.ToListItem(obj);
+            if (item is not null)
+                items.Add(item);
+        }
+
+        return ServiceResult<IReadOnlyList<UserAccountListItemDto>>.Ok(items);
+    }
+
+    public async Task<ServiceResult<UserAccountDetailDto>> GetByIdAsync(
+        string tenantId,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId) || string.IsNullOrWhiteSpace(userId))
+            return ServiceResult<UserAccountDetailDto>.Fail(400, "Tenant e userId são obrigatórios.");
+
+        var tenant = await tenantLookup.FindActiveByIdAsync(tenantId.Trim(), cancellationToken);
+        if (tenant is null)
+            return ServiceResult<UserAccountDetailDto>.Fail(404, "Tenant não encontrado ou inativo.");
+
+        var json = await userAccountWriter.GetUserDocumentJsonAsync(tenant.Id, userId.Trim(), cancellationToken);
+        if (json is null)
+            return ServiceResult<UserAccountDetailDto>.Fail(404, "Conta não encontrada.");
+
+        if (JsonNode.Parse(json) is not JsonObject obj)
+            return ServiceResult<UserAccountDetailDto>.Fail(400, "Documento de utilizador inválido.");
+
+        var id = UserAccountApiSanitizer.ResolveDocumentId(obj);
+        if (string.IsNullOrWhiteSpace(id))
+            return ServiceResult<UserAccountDetailDto>.Fail(400, "Documento de utilizador inválido.");
+
+        return ServiceResult<UserAccountDetailDto>.Ok(new UserAccountDetailDto(
+            id,
+            UserAccountApiSanitizer.GetSchemaId(obj) ?? string.Empty,
+            UserAccountApiSanitizer.ToPublicProfile(obj)));
     }
 
     public async Task<ServiceResult<UpdateAccountRolesResult>> UpdateRolesAsync(
@@ -88,10 +205,6 @@ public sealed class AccountAdminAppService(
         if (tenant is null)
             return ServiceResult<UpdateAccountRolesResult>.Fail(404, "Tenant não encontrado ou inativo.");
 
-        var schemaEntity = await schemaRepository.GetDefaultAsync(tenant.Id, cancellationToken);
-        if (schemaEntity is null)
-            return ServiceResult<UpdateAccountRolesResult>.Fail(400, "Não existe schema default de conta para este tenant.");
-
         var existingJson = await userAccountWriter.GetUserDocumentJsonAsync(tenant.Id, userId.Trim(), cancellationToken);
         if (existingJson is null)
             return ServiceResult<UpdateAccountRolesResult>.Fail(404, "Conta não encontrada.");
@@ -108,6 +221,14 @@ public sealed class AccountAdminAppService(
 
         if (existingObj is null)
             return ServiceResult<UpdateAccountRolesResult>.Fail(400, "Documento de utilizador inválido.");
+
+        var schemaEntity = await AccountRegistrationRequestHelper.ResolveSchemaForUserAsync(
+            schemaRepository,
+            tenant.Id,
+            existingObj,
+            cancellationToken);
+        if (schemaEntity is null)
+            return ServiceResult<UpdateAccountRolesResult>.Fail(400, "Schema de conta não encontrado para este utilizador.");
 
         var roles = UserRoles.NormalizeAccountRoles(request.Roles);
         existingObj["roles"] = new JsonArray(roles.Select(r => JsonValue.Create(r)!).ToArray());
