@@ -1,6 +1,6 @@
 namespace Lightcode.Registration.Domain.Entities;
 
-/// <summary>Definição de JSON Schema (draft) para validação de cadastro de conta no tenant.</summary>
+/// <summary>Definição de JSON Schema (draft) persistida no banco do tenant (<c>tenant_{id}</c>) para validação de cadastro de conta.</summary>
 public class AccountJsonSchema
 {
     public string Id { get; set; } = default!;

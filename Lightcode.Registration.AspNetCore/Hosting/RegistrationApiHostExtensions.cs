@@ -168,7 +168,10 @@ public static class RegistrationApiHostExtensions
             });
         });
 
-        builder.Services.AddControllers();
+        if (hostOptions.EnableMvcViews)
+            builder.Services.AddControllersWithViews();
+        else
+            builder.Services.AddControllers();
         builder.Services.AddOpenApi();
 
         builder.Services.Configure<ApiBehaviorOptions>(options =>

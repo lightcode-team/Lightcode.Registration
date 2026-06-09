@@ -7,18 +7,18 @@ public interface IOAuthClientAppService
 {
     Task<ServiceResult<IReadOnlyList<OAuthClientDto>>> ListAsync(string tenantId, CancellationToken cancellationToken = default);
 
-    Task<ServiceResult<OAuthClientDto>> GetByIdAsync(string tenantId, string id, CancellationToken cancellationToken = default);
+    Task<ServiceResult<OAuthClientDto>> GetByClientIdAsync(string tenantId, string clientId, CancellationToken cancellationToken = default);
 
     Task<ServiceResult<OAuthClientCreatedDto>> CreateAsync(
         string tenantId,
         CreateOAuthClientRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<ServiceResult<OAuthClientDto>> UpdateAsync(
+    Task<ServiceResult<OAuthClientDto>> UpdateByClientIdAsync(
         string tenantId,
-        string id,
+        string clientId,
         UpdateOAuthClientRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<ServiceResult<bool>> DeactivateAsync(string tenantId, string id, CancellationToken cancellationToken = default);
+    Task<ServiceResult<bool>> DeactivateByClientIdAsync(string tenantId, string clientId, CancellationToken cancellationToken = default);
 }

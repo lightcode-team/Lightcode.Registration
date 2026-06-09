@@ -15,7 +15,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
 
     private readonly IMongoClient _mongoClient;
     private readonly IMongoCollection<Tenant> _tenants;
-    private readonly IMongoCollection<EmailTemplate> _emailTemplates;
+    private readonly IEmailTemplateRepository _emailTemplates;
     private readonly IAccountJsonSchemaRepository _accountSchemas;
     private readonly IJsonSchemaToMongoValidatorMapper _mongoMapper;
     private readonly IUsersCollectionSchemaApplier _usersSchemaApplier;
@@ -30,6 +30,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
         IOptions<MongoOptions> mongoOptions,
         IOptions<JwtOptions> jwtOptions,
         IOptions<TenantDefaultSmtpOptions> defaultTenantSmtp,
+        IEmailTemplateRepository emailTemplates,
         IAccountJsonSchemaRepository accountSchemas,
         IJsonSchemaToMongoValidatorMapper mongoMapper,
         IUsersCollectionSchemaApplier usersSchemaApplier,
@@ -38,6 +39,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
         ISecureTokenGenerator tokenGenerator)
     {
         _mongoClient = client;
+        _emailTemplates = emailTemplates;
         _accountSchemas = accountSchemas;
         _mongoMapper = mongoMapper;
         _usersSchemaApplier = usersSchemaApplier;
@@ -49,7 +51,6 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
         var mongo = mongoOptions.Value;
         var master = client.GetDatabase(mongo.MasterDatabaseName);
         _tenants = master.GetCollection<Tenant>("Tenants");
-        _emailTemplates = master.GetCollection<EmailTemplate>("EmailTemplates");
     }
 
     public async Task<TenantProvisionResult> ProvisionAsync(
@@ -94,6 +95,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
 
         await SeedClientCredentialsEmailTemplateAsync(tenant, now, cancellationToken);
         await SeedEmailConfirmationTemplatesAsync(tenant, now, cancellationToken);
+        await SeedPasswordResetEmailTemplateAsync(tenant, now, cancellationToken);
 
         var clientId = $"client_{tenantId}";
         var clientSecret = _tokenGenerator.GenerateClientSecret();
@@ -176,7 +178,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
             UpdatedAtUtc = now
         };
 
-        await _emailTemplates.InsertOneAsync(template, cancellationToken: cancellationToken);
+        await _emailTemplates.InsertAsync(template, cancellationToken);
     }
 
     private async Task SeedEmailConfirmationTemplatesAsync(
@@ -232,7 +234,42 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
             UpdatedAtUtc = now
         };
 
-        await _emailTemplates.InsertManyAsync([codeTemplate, linkTemplate], cancellationToken: cancellationToken);
+        await _emailTemplates.InsertAsync(codeTemplate, cancellationToken);
+        await _emailTemplates.InsertAsync(linkTemplate, cancellationToken);
+    }
+
+    private async Task SeedPasswordResetEmailTemplateAsync(
+        Tenant tenant,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var template = new EmailTemplate
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            TenantId = tenant.Id,
+            Key = AccountPasswordResetFields.TemplateKey,
+            DisplayName = "Redefinição de senha",
+            Subject = "Redefina a sua senha",
+            HtmlBody = """
+                <p>Olá,</p>
+                <p>Recebemos um pedido para redefinir a sua senha.</p>
+                <p>Clique no link abaixo para escolher uma nova senha:</p>
+                <p><a href="{{resetLink}}">{{resetLink}}</a></p>
+                <p>O link expira em 60 minutos. Se não fez este pedido, ignore este email.</p>
+                """,
+            TextBody = """
+                Recebemos um pedido para redefinir a sua senha.
+
+                Aceda ao link:
+                {{resetLink}}
+
+                O link expira em 60 minutos. Se não fez este pedido, ignore este email.
+                """,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        await _emailTemplates.InsertAsync(template, cancellationToken);
     }
 
     private async Task SeedTenantSmtpSettingsAsync(string tenantDatabaseName, CancellationToken cancellationToken)

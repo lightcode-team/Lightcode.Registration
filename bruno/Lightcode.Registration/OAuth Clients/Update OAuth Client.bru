@@ -5,7 +5,7 @@ meta {
 }
 
 put {
-  url: {{baseUrl}}/api/oauth-clients/{{oauthClientInternalId}}
+  url: {{baseUrl}}/api/oauth-clients/me
   body: json
   auth: bearer
 }
@@ -39,12 +39,8 @@ body:json {
   }
 }
 
-vars:pre-request {
-  oauthClientInternalId: 8474ca05c912442eae187b1b306b446f
-}
-
 docs {
   # Atualizar configuração de token do cliente
   
-  **PUT** `/api/oauth-clients/{id}` — requer role `clients-write` ou scope `owner`. `id` é o identificador interno Mongo (não o `clientId`).
+  **PUT** `/api/oauth-clients/me` — requer role `clients-write` ou scope `owner`. Opera sobre o cliente identificado pelo claim `client_id` (ou `sub`) do JWT.
 }

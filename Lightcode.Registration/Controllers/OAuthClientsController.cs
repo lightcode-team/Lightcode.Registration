@@ -16,6 +16,11 @@ public sealed class OAuthClientsController(IOAuthClientAppService oauthClientApp
     private string CurrentTenantId =>
         User.FindFirst("tenantId")?.Value ?? throw new InvalidOperationException("tenantId em falta no token.");
 
+    private string CurrentClientId =>
+        User.FindFirst("client_id")?.Value
+        ?? User.FindFirst("sub")?.Value
+        ?? throw new InvalidOperationException("client_id em falta no token.");
+
     [Authorize(Policy = OAuthClientsPolicyNames.ClientsRead)]
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
@@ -25,10 +30,10 @@ public sealed class OAuthClientsController(IOAuthClientAppService oauthClientApp
     }
 
     [Authorize(Policy = OAuthClientsPolicyNames.ClientsRead)]
-    [HttpGet("{id}")]
-    public async Task<IActionResult> GetById(string id, CancellationToken cancellationToken)
+    [HttpGet("me")]
+    public async Task<IActionResult> GetCurrent(CancellationToken cancellationToken)
     {
-        var result = await oauthClientAppService.GetByIdAsync(CurrentTenantId, id, cancellationToken);
+        var result = await oauthClientAppService.GetByClientIdAsync(CurrentTenantId, CurrentClientId, cancellationToken);
         return result.ToApiResponse();
     }
 
@@ -41,18 +46,18 @@ public sealed class OAuthClientsController(IOAuthClientAppService oauthClientApp
     }
 
     [Authorize(Policy = OAuthClientsPolicyNames.ClientsWrite)]
-    [HttpPut("{id}")]
-    public async Task<IActionResult> Update(string id, [FromBody] UpdateOAuthClientRequest body, CancellationToken cancellationToken)
+    [HttpPut("me")]
+    public async Task<IActionResult> UpdateCurrent([FromBody] UpdateOAuthClientRequest body, CancellationToken cancellationToken)
     {
-        var result = await oauthClientAppService.UpdateAsync(CurrentTenantId, id, body, cancellationToken);
+        var result = await oauthClientAppService.UpdateByClientIdAsync(CurrentTenantId, CurrentClientId, body, cancellationToken);
         return result.ToApiResponse();
     }
 
     [Authorize(Policy = OAuthClientsPolicyNames.ClientsWrite)]
-    [HttpDelete("{id}")]
-    public async Task<IActionResult> Deactivate(string id, CancellationToken cancellationToken)
+    [HttpDelete("me")]
+    public async Task<IActionResult> DeactivateCurrent(CancellationToken cancellationToken)
     {
-        var result = await oauthClientAppService.DeactivateAsync(CurrentTenantId, id, cancellationToken);
+        var result = await oauthClientAppService.DeactivateByClientIdAsync(CurrentTenantId, CurrentClientId, cancellationToken);
         return result.ToApiResponse();
     }
 }

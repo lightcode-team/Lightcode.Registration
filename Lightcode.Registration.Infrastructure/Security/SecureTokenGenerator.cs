@@ -17,6 +17,8 @@ public sealed class SecureTokenGenerator : ISecureTokenGenerator
 
     public string GenerateEmailConfirmationToken() => GenerateUrlSafeToken(32);
 
+    public string GeneratePasswordResetToken() => GenerateUrlSafeToken(32);
+
     private static string GenerateUrlSafeToken(int byteLength)
     {
         var bytes = RandomNumberGenerator.GetBytes(byteLength);

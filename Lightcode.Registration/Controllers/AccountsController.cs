@@ -16,7 +16,8 @@ public sealed class AccountsController(
     IAccountRegistrationAppService accountRegistrationAppService,
     IAccountAdminAppService accountAdminAppService,
     IAccountUpdateAppService accountUpdateAppService,
-    IAccountEmailConfirmationAppService accountEmailConfirmationAppService) : ControllerBase
+    IAccountEmailConfirmationAppService accountEmailConfirmationAppService,
+    IAccountPasswordResetAppService accountPasswordResetAppService) : ControllerBase
 {
     /// <summary>
     /// Registo público de conta. Exige <c>schemaId</c>, <c>email</c>, <c>username</c> e <c>password</c> (JSON Schema indicado).
@@ -175,6 +176,26 @@ public sealed class AccountsController(
             tenantId.Trim(),
             email,
             token,
+            cancellationToken);
+
+        return result.ToApiResponse();
+    }
+
+    /// <summary>Solicita redefinição de senha por email ou username. Envia link por email se a conta existir. Exige cabeçalho <see cref="TenantHttpHeaders.TenantId"/>.</summary>
+    [AllowAnonymous]
+    [HttpPost("~/api/accounts/forgot-password")]
+    public async Task<IActionResult> ForgotPassword(
+        [FromBody] ForgotPasswordRequest body,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = TenantHttpHeaders.TryGetTenantId(Request);
+        if (tenantId is null)
+            return ApiResponse.Error(400, $"Tenant em falta: envie o cabeçalho {TenantHttpHeaders.TenantId}.");
+
+        var result = await accountPasswordResetAppService.ForgotPasswordAsync(
+            tenantId,
+            body.Email,
+            body.Username,
             cancellationToken);
 
         return result.ToApiResponse();

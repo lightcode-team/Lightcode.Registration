@@ -282,4 +282,112 @@ public sealed class UserAccountMongoWriter(
         var docs = await cursor.ToListAsync(cancellationToken);
         return docs.Select(d => d.ToJson(RelaxedJsonWriterSettings)).ToList();
     }
+
+    public async Task<string?> TryGetActiveUserEmailAsync(
+        string tenantId,
+        string? email,
+        string? username,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = await tenantLookup.FindActiveByIdAsync(tenantId, cancellationToken);
+        if (tenant is null)
+            return null;
+
+        var coll = client.GetDatabase(tenant.DatabaseName).GetCollection<BsonDocument>("Users");
+        BsonDocument? doc = null;
+
+        if (!string.IsNullOrWhiteSpace(email))
+        {
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+            doc = await coll.Find(Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Eq("email", normalizedEmail),
+                Builders<BsonDocument>.Filter.Eq("status", AccountStatuses.Active))).FirstOrDefaultAsync(cancellationToken);
+        }
+
+        if (doc is null && !string.IsNullOrWhiteSpace(username))
+        {
+            var normalizedUsername = username.Trim().ToLowerInvariant();
+            doc = await coll.Find(Builders<BsonDocument>.Filter.And(
+                Builders<BsonDocument>.Filter.Eq("username", normalizedUsername),
+                Builders<BsonDocument>.Filter.Eq("status", AccountStatuses.Active))).FirstOrDefaultAsync(cancellationToken);
+        }
+
+        if (doc is null || !doc.Contains("email") || !doc["email"].IsString)
+            return null;
+
+        return doc["email"].AsString;
+    }
+
+    public async Task<bool> TrySetPasswordResetTokenAsync(
+        string tenantId,
+        string email,
+        string tokenHash,
+        DateTime expiresAtUtc,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = await tenantLookup.FindActiveByIdAsync(tenantId, cancellationToken);
+        if (tenant is null)
+            return false;
+
+        var coll = client.GetDatabase(tenant.DatabaseName).GetCollection<BsonDocument>("Users");
+        var filter = Builders<BsonDocument>.Filter.And(
+            Builders<BsonDocument>.Filter.Eq("email", email),
+            Builders<BsonDocument>.Filter.Eq("status", AccountStatuses.Active));
+
+        var update = Builders<BsonDocument>.Update
+            .Set(AccountPasswordResetFields.TokenHash, tokenHash)
+            .Set(AccountPasswordResetFields.ExpiresAtUtc, expiresAtUtc);
+
+        var result = await coll.UpdateOneAsync(filter, update, cancellationToken: cancellationToken);
+        return result.MatchedCount > 0;
+    }
+
+    public async Task<bool> TryResetPasswordAsync(
+        string tenantId,
+        string email,
+        string tokenPlain,
+        string newPasswordHash,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = await tenantLookup.FindActiveByIdAsync(tenantId, cancellationToken);
+        if (tenant is null)
+            return false;
+
+        var coll = client.GetDatabase(tenant.DatabaseName).GetCollection<BsonDocument>("Users");
+        var filter = Builders<BsonDocument>.Filter.And(
+            Builders<BsonDocument>.Filter.Eq("email", email),
+            Builders<BsonDocument>.Filter.Eq("status", AccountStatuses.Active));
+
+        var doc = await coll.Find(filter).FirstOrDefaultAsync(cancellationToken);
+        if (doc is null)
+            return false;
+
+        if (!doc.Contains(AccountPasswordResetFields.TokenHash)
+            || !doc[AccountPasswordResetFields.TokenHash].IsString)
+            return false;
+
+        var storedHash = doc[AccountPasswordResetFields.TokenHash].AsString;
+        if (!passwordHasher.Verify(tokenPlain, storedHash))
+            return false;
+
+        if (doc.Contains(AccountPasswordResetFields.ExpiresAtUtc)
+            && doc[AccountPasswordResetFields.ExpiresAtUtc].IsValidDateTime)
+        {
+            var expiresUtc = doc[AccountPasswordResetFields.ExpiresAtUtc].ToUniversalTime();
+            if (expiresUtc < DateTime.UtcNow)
+                return false;
+        }
+
+        var update = Builders<BsonDocument>.Update
+            .Set("password", newPasswordHash)
+            .Unset(AccountPasswordResetFields.TokenHash)
+            .Unset(AccountPasswordResetFields.ExpiresAtUtc);
+
+        var result = await coll.UpdateOneAsync(
+            Builders<BsonDocument>.Filter.Eq("_id", doc["_id"]),
+            update,
+            cancellationToken: cancellationToken);
+
+        return result.ModifiedCount > 0;
+    }
 }

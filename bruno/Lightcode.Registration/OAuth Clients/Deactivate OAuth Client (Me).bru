@@ -1,0 +1,27 @@
+meta {
+  name: Deactivate OAuth Client (Me)
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/oauth-clients/me
+  body: none
+  auth: bearer
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+docs {
+  # Desativar cliente OAuth autenticado
+  
+  **DELETE** `/api/oauth-clients/me` — requer role `clients-write` ou scope `owner`.
+  
+  Desativa o cliente do claim `client_id` (ou `sub`) do JWT. **Cuidado:** invalida o token em uso após desativação.
+}

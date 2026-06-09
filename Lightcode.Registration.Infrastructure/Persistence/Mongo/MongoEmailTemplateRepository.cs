@@ -1,58 +1,95 @@
 using Lightcode.Registration.Application.Abstractions;
-using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Domain.Entities;
-using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 
 namespace Lightcode.Registration.Infrastructure.Persistence.Mongo;
 
-public sealed class MongoEmailTemplateRepository : IEmailTemplateRepository
+public sealed class MongoEmailTemplateRepository(IMongoClient client, ITenantLookup tenantLookup)
+    : IEmailTemplateRepository
 {
-    private readonly IMongoCollection<EmailTemplate> _collection;
+    private const string CollectionName = "EmailTemplates";
 
-    public MongoEmailTemplateRepository(IMongoClient client, IOptions<MongoOptions> options)
+    public async Task<IReadOnlyList<EmailTemplate>> ListByTenantAsync(string tenantId, CancellationToken cancellationToken = default)
     {
-        var db = client.GetDatabase(options.Value.MasterDatabaseName);
-        _collection = db.GetCollection<EmailTemplate>("EmailTemplates");
-        TryEnsureIndexes();
+        var coll = await GetCollectionAsync(tenantId, cancellationToken);
+        if (coll is null)
+            return [];
+
+        return await coll.Find(_ => true).SortBy(x => x.Key).ToListAsync(cancellationToken);
     }
 
-    private void TryEnsureIndexes()
+    public async Task<EmailTemplate?> GetByIdAsync(string tenantId, string id, CancellationToken cancellationToken = default)
+    {
+        var coll = await GetCollectionAsync(tenantId, cancellationToken);
+        if (coll is null)
+            return null;
+
+        return await coll.Find(x => x.Id == id).FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<EmailTemplate?> GetByKeyAsync(string tenantId, string key, CancellationToken cancellationToken = default)
+    {
+        var coll = await GetCollectionAsync(tenantId, cancellationToken);
+        if (coll is null)
+            return null;
+
+        return await coll.Find(x => x.Key == key).FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task InsertAsync(EmailTemplate entity, CancellationToken cancellationToken = default)
+    {
+        var coll = await GetCollectionRequiredAsync(entity.TenantId, cancellationToken);
+        TryEnsureIndexes(coll);
+        await coll.InsertOneAsync(entity, cancellationToken: cancellationToken);
+    }
+
+    public async Task ReplaceAsync(EmailTemplate entity, CancellationToken cancellationToken = default)
+    {
+        var coll = await GetCollectionRequiredAsync(entity.TenantId, cancellationToken);
+        await coll.ReplaceOneAsync(x => x.Id == entity.Id, entity, cancellationToken: cancellationToken);
+    }
+
+    public async Task DeleteAsync(string tenantId, string id, CancellationToken cancellationToken = default)
+    {
+        var coll = await GetCollectionAsync(tenantId, cancellationToken);
+        if (coll is null)
+            return;
+
+        await coll.DeleteOneAsync(x => x.Id == id, cancellationToken);
+    }
+
+    private async Task<IMongoCollection<EmailTemplate>?> GetCollectionAsync(
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        var tenant = await tenantLookup.FindActiveByIdAsync(tenantId, cancellationToken);
+        if (tenant is null)
+            return null;
+
+        var coll = client.GetDatabase(tenant.DatabaseName).GetCollection<EmailTemplate>(CollectionName);
+        TryEnsureIndexes(coll);
+        return coll;
+    }
+
+    private async Task<IMongoCollection<EmailTemplate>> GetCollectionRequiredAsync(
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        var coll = await GetCollectionAsync(tenantId, cancellationToken);
+        return coll ?? throw new InvalidOperationException($"Tenant '{tenantId}' não encontrado.");
+    }
+
+    private static void TryEnsureIndexes(IMongoCollection<EmailTemplate> collection)
     {
         try
         {
-            var keys = Builders<EmailTemplate>.IndexKeys.Ascending(x => x.TenantId).Ascending(x => x.Key);
-            var model = new CreateIndexModel<EmailTemplate>(keys, new CreateIndexOptions { Unique = true, Name = "ux_tenant_key" });
-            _collection.Indexes.CreateOne(model);
+            var keys = Builders<EmailTemplate>.IndexKeys.Ascending(x => x.Key);
+            var model = new CreateIndexModel<EmailTemplate>(keys, new CreateIndexOptions { Unique = true, Name = "ux_key" });
+            collection.Indexes.CreateOne(model);
         }
         catch (MongoCommandException)
         {
             // índice já existe ou nome duplicado
         }
     }
-
-    public async Task<IReadOnlyList<EmailTemplate>> ListByTenantAsync(string tenantId, CancellationToken cancellationToken = default)
-    {
-        var list = await _collection.Find(x => x.TenantId == tenantId).SortBy(x => x.Key).ToListAsync(cancellationToken);
-        return list;
-    }
-
-    public async Task<EmailTemplate?> GetByIdAsync(string tenantId, string id, CancellationToken cancellationToken = default)
-    {
-        return await _collection.Find(x => x.TenantId == tenantId && x.Id == id).FirstOrDefaultAsync(cancellationToken);
-    }
-
-    public async Task<EmailTemplate?> GetByKeyAsync(string tenantId, string key, CancellationToken cancellationToken = default)
-    {
-        return await _collection.Find(x => x.TenantId == tenantId && x.Key == key).FirstOrDefaultAsync(cancellationToken);
-    }
-
-    public Task InsertAsync(EmailTemplate entity, CancellationToken cancellationToken = default) =>
-        _collection.InsertOneAsync(entity, cancellationToken: cancellationToken);
-
-    public Task ReplaceAsync(EmailTemplate entity, CancellationToken cancellationToken = default) =>
-        _collection.ReplaceOneAsync(x => x.Id == entity.Id && x.TenantId == entity.TenantId, entity, cancellationToken: cancellationToken);
-
-    public Task DeleteAsync(string tenantId, string id, CancellationToken cancellationToken = default) =>
-        _collection.DeleteOneAsync(x => x.TenantId == tenantId && x.Id == id, cancellationToken);
 }

@@ -1,6 +1,6 @@
 namespace Lightcode.Registration.Domain.Entities;
 
-/// <summary>Template de email persistido no master (<c>SaasMasterDb</c>), por tenant.</summary>
+/// <summary>Template de email persistido no banco do tenant (<c>tenant_{id}</c>).</summary>
 public sealed class EmailTemplate
 {
     public string Id { get; set; } = default!;

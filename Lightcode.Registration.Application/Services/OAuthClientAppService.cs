@@ -25,12 +25,12 @@ public sealed class OAuthClientAppService(
         return ServiceResult<IReadOnlyList<OAuthClientDto>>.Ok(clients.Select(OAuthClientMapping.ToDto).ToList());
     }
 
-    public async Task<ServiceResult<OAuthClientDto>> GetByIdAsync(
+    public async Task<ServiceResult<OAuthClientDto>> GetByClientIdAsync(
         string tenantId,
-        string id,
+        string clientId,
         CancellationToken cancellationToken = default)
     {
-        var client = await repository.GetByIdAsync(tenantId, id, cancellationToken);
+        var client = await repository.FindByClientIdAsync(tenantId, clientId, cancellationToken);
         return client is null
             ? ServiceResult<OAuthClientDto>.Fail(404, "Cliente OAuth não encontrado.")
             : ServiceResult<OAuthClientDto>.Ok(OAuthClientMapping.ToDto(client));
@@ -94,13 +94,13 @@ public sealed class OAuthClientAppService(
                 OAuthClientMapping.ToConfigDto(entity.TokenConfig)));
     }
 
-    public async Task<ServiceResult<OAuthClientDto>> UpdateAsync(
+    public async Task<ServiceResult<OAuthClientDto>> UpdateByClientIdAsync(
         string tenantId,
-        string id,
+        string clientId,
         UpdateOAuthClientRequest request,
         CancellationToken cancellationToken = default)
     {
-        var client = await repository.GetByIdAsync(tenantId, id, cancellationToken);
+        var client = await repository.FindByClientIdAsync(tenantId, clientId, cancellationToken);
         if (client is null)
             return ServiceResult<OAuthClientDto>.Fail(404, "Cliente OAuth não encontrado.");
 
@@ -117,12 +117,16 @@ public sealed class OAuthClientAppService(
         return ServiceResult<OAuthClientDto>.Ok(OAuthClientMapping.ToDto(client));
     }
 
-    public async Task<ServiceResult<bool>> DeactivateAsync(
+    public async Task<ServiceResult<bool>> DeactivateByClientIdAsync(
         string tenantId,
-        string id,
+        string clientId,
         CancellationToken cancellationToken = default)
     {
-        var deactivated = await repository.DeactivateAsync(tenantId, id, cancellationToken);
+        var client = await repository.FindByClientIdAsync(tenantId, clientId, cancellationToken);
+        if (client is null)
+            return ServiceResult<bool>.Fail(404, "Cliente OAuth não encontrado.");
+
+        var deactivated = await repository.DeactivateAsync(tenantId, client.Id, cancellationToken);
         return deactivated
             ? ServiceResult<bool>.Ok(true)
             : ServiceResult<bool>.Fail(404, "Cliente OAuth não encontrado.");

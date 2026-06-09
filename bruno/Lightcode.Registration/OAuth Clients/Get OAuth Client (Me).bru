@@ -1,0 +1,27 @@
+meta {
+  name: Get OAuth Client (Me)
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/oauth-clients/me
+  body: none
+  auth: bearer
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+docs {
+  # Obter cliente OAuth autenticado
+  
+  **GET** `/api/oauth-clients/me` — requer role `clients-read` ou scope `owner`.
+  
+  Devolve o cliente identificado pelo claim `client_id` (ou `sub`) do JWT — não usa id interno MongoDB.
+}

@@ -50,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountAdminAppService, AccountAdminAppService>();
         services.AddScoped<IAccountUpdateAppService, AccountUpdateAppService>();
         services.AddScoped<IAccountEmailConfirmationAppService, AccountEmailConfirmationAppService>();
+        services.AddScoped<IAccountPasswordResetAppService, AccountPasswordResetAppService>();
 
         services.AddScoped<ITenantSmtpSettingsRepository, MongoTenantSmtpSettingsRepository>();
         services.AddScoped<IEmailTemplateRepository, MongoEmailTemplateRepository>();

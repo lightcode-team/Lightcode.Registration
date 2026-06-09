@@ -49,4 +49,27 @@ public interface IUserAccountWriter
     Task<string?> GetUserStatusAsync(string tenantId, string userId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<string>> ListUserDocumentsJsonAsync(string tenantId, CancellationToken cancellationToken = default);
+
+    /// <summary>Resolve o email de um utilizador ativo por email ou username.</summary>
+    Task<string?> TryGetActiveUserEmailAsync(
+        string tenantId,
+        string? email,
+        string? username,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Grava token de redefinição de senha para utilizador ativo com o email indicado.</summary>
+    Task<bool> TrySetPasswordResetTokenAsync(
+        string tenantId,
+        string email,
+        string tokenHash,
+        DateTime expiresAtUtc,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Valida token e atualiza o hash da password; remove campos de reset.</summary>
+    Task<bool> TryResetPasswordAsync(
+        string tenantId,
+        string email,
+        string tokenPlain,
+        string newPasswordHash,
+        CancellationToken cancellationToken = default);
 }
