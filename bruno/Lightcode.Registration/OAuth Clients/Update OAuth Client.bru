@@ -1,0 +1,44 @@
+meta {
+  name: Update OAuth Client
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/api/oauth-clients/{{oauthClientInternalId}}
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "displayName": "FinAi Integration",
+    "tokenConfig": {
+      "accessTokenExpirationMinutes": 60,
+      "refreshTokenExpirationDays": 15,
+      "maxRefreshTokenUses": 3,
+      "values": [
+        { "type": "iss", "value": "FinAi" },
+        { "type": "aud", "value": "FinAi.Api" },
+        { "type": "scope", "value": "admin" },
+        { "type": "role", "value": "send-email" },
+        { "type": "role", "value": "clients-read" }
+      ]
+    }
+  }
+}
+
+vars:pre-request {
+  oauthClientInternalId: 8474ca05c912442eae187b1b306b446f
+}
+
+docs {
+  # Atualizar configuração de token do cliente
+  
+  **PUT** `/api/oauth-clients/{id}` — requer role `clients-write` ou scope `owner`. `id` é o identificador interno Mongo (não o `clientId`).
+}

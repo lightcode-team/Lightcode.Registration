@@ -55,12 +55,12 @@ public sealed class UserCredentialValidator(
                 .Where(e => e.IsString)
                 .Select(e => e.AsString)
                 .ToList();
-            return UserRoles.NormalizeMany(raw);
+            return UserRoles.NormalizeAccountRoles(raw);
         }
 
         if (doc.Contains("role") && doc["role"].IsString)
-            return UserRoles.NormalizeMany([doc["role"].AsString]);
+            return UserRoles.NormalizeAccountRoles([doc["role"].AsString]);
 
-        return UserRoles.NormalizeMany(null);
+        return UserRoles.NormalizeAccountRoles(null);
     }
 }

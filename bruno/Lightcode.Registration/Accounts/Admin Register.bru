@@ -1,0 +1,44 @@
+meta {
+  name: Admin Register
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/accounts/admin
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "user@example.com",
+    "username": "newuser",
+    "password": "ChangeThis!12345678",
+    "roles": ["user", "template-read"]
+  }
+}
+
+docs {
+  # Criar utilizador (admin)
+  
+  **POST** `/api/accounts/admin`
+  
+  Requer JWT com role `admin` ou scope `owner`.
+  O tenant vem do claim `tenantId` do token.
+  
+  ## Corpo
+  - `email`, `username`, `password` — obrigatórios
+  - `roles` — array de roles (ex.: `admin`, `user`, `template-read`, `send-email`)
+  
+  ## Resposta (Data)
+  - `id` — id Mongo do utilizador criado
+}

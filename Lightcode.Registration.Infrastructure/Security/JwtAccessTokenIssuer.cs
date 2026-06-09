@@ -12,31 +12,40 @@ namespace Lightcode.Registration.Infrastructure.Security;
 
 public sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> jwtOptions) : IAccessTokenIssuer
 {
-    public IssueTokenResponse CreateToken(string userId, string tenantId, IReadOnlyList<string> roles)
+    public IssueTokenResponse CreateAccessToken(string subjectId, string tenantId, TokenIssuanceProfile profile)
     {
         var jwt = jwtOptions.Value;
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey));
         var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
 
-        var normalized = UserRoles.NormalizeMany(roles);
         var claims = new List<Claim>
         {
-            new(JwtRegisteredClaimNames.Sub, userId),
+            new(JwtRegisteredClaimNames.Sub, subjectId),
             new("tenantId", tenantId)
         };
 
-        foreach (var r in normalized)
-            claims.Add(new Claim("role", r));
+        if (!string.IsNullOrWhiteSpace(profile.ClientId))
+            claims.Add(new Claim("client_id", profile.ClientId));
+
+        foreach (var role in profile.Roles.Where(r => !string.IsNullOrWhiteSpace(r)))
+            claims.Add(new Claim("role", role.Trim().ToLowerInvariant()));
+
+        foreach (var scope in profile.Scopes.Where(s => !string.IsNullOrWhiteSpace(s)))
+            claims.Add(new Claim("scope", scope.Trim()));
+
+        var expiresMinutes = profile.AccessTokenExpirationMinutes > 0
+            ? profile.AccessTokenExpirationMinutes
+            : jwt.ExpirationMinutes;
 
         var token = new JwtSecurityToken(
-            issuer: jwt.Issuer,
-            audience: jwt.Audience,
+            issuer: profile.Issuer,
+            audience: profile.Audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(jwt.ExpirationMinutes),
+            expires: DateTime.UtcNow.AddMinutes(expiresMinutes),
             signingCredentials: creds);
 
         var handler = new JwtSecurityTokenHandler();
         var accessToken = handler.WriteToken(token);
-        return new IssueTokenResponse(accessToken, "Bearer", jwt.ExpirationMinutes * 60);
+        return new IssueTokenResponse(accessToken, "Bearer", expiresMinutes * 60);
     }
 }

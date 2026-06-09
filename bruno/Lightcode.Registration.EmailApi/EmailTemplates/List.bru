@@ -15,5 +15,5 @@ auth:bearer {
 }
 
 docs {
-  **GET** `/api/email-templates` — qualquer utilizador autenticado no tenant (`HasTenant`).
+  **GET** `/api/email-templates` — requer role `template-read` ou scope `email-admin`.
 }

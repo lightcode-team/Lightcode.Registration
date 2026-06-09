@@ -27,6 +27,11 @@ public static class DependencyInjection
         services.AddScoped<IUserAccountWriter, UserAccountMongoWriter>();
         services.AddScoped<IUserCredentialValidator, UserCredentialValidator>();
         services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
+        services.AddSingleton<ISecureTokenGenerator, SecureTokenGenerator>();
+
+        services.AddScoped<IOAuthClientRepository, MongoOAuthClientRepository>();
+        services.AddScoped<IOAuthClientAppService, OAuthClientAppService>();
+        services.AddScoped<IRefreshTokenRepository, MongoRefreshTokenRepository>();
 
         services.AddScoped<ITenantProvisioner, MongoTenantProvisioner>();
         services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
@@ -40,6 +45,7 @@ public static class DependencyInjection
         services.AddScoped<IWeatherForecastAppService, WeatherForecastAppService>();
         services.AddScoped<IAccountJsonSchemaAppService, AccountJsonSchemaAppService>();
         services.AddScoped<IAccountRegistrationAppService, AccountRegistrationAppService>();
+        services.AddScoped<IAccountAdminAppService, AccountAdminAppService>();
         services.AddScoped<IAccountUpdateAppService, AccountUpdateAppService>();
 
         services.AddScoped<ITenantSmtpSettingsRepository, MongoTenantSmtpSettingsRepository>();

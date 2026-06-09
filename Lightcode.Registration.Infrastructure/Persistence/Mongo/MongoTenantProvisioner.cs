@@ -1,6 +1,4 @@
-using System.Text.Json;
 using Lightcode.Registration.Application.Abstractions;
-using Lightcode.Registration.Application.Accounts;
 using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Registration;
 using Lightcode.Registration.Application.Security;
@@ -12,41 +10,50 @@ namespace Lightcode.Registration.Infrastructure.Persistence.Mongo;
 
 public sealed class MongoTenantProvisioner : ITenantProvisioner
 {
+    private const string ClientCredentialsTemplateKey = "client-credentials-secret";
+
     private readonly IMongoClient _mongoClient;
     private readonly IMongoCollection<Tenant> _tenants;
+    private readonly IMongoCollection<EmailTemplate> _emailTemplates;
     private readonly IAccountJsonSchemaRepository _accountSchemas;
     private readonly IJsonSchemaToMongoValidatorMapper _mongoMapper;
     private readonly IUsersCollectionSchemaApplier _usersSchemaApplier;
-    private readonly IUserAccountWriter _userAccountWriter;
+    private readonly IOAuthClientRepository _oauthClientRepository;
     private readonly IPasswordHasher _passwordHasher;
-    private readonly MasterOptions _masterOptions;
+    private readonly ISecureTokenGenerator _tokenGenerator;
+    private readonly JwtOptions _jwtOptions;
     private readonly TenantDefaultSmtpOptions _defaultTenantSmtp;
 
     public MongoTenantProvisioner(
         IMongoClient client,
         IOptions<MongoOptions> mongoOptions,
-        IOptions<MasterOptions> masterOptions,
+        IOptions<JwtOptions> jwtOptions,
         IOptions<TenantDefaultSmtpOptions> defaultTenantSmtp,
         IAccountJsonSchemaRepository accountSchemas,
         IJsonSchemaToMongoValidatorMapper mongoMapper,
         IUsersCollectionSchemaApplier usersSchemaApplier,
-        IUserAccountWriter userAccountWriter,
-        IPasswordHasher passwordHasher)
+        IOAuthClientRepository oauthClientRepository,
+        IPasswordHasher passwordHasher,
+        ISecureTokenGenerator tokenGenerator)
     {
         _mongoClient = client;
         _accountSchemas = accountSchemas;
         _mongoMapper = mongoMapper;
         _usersSchemaApplier = usersSchemaApplier;
-        _userAccountWriter = userAccountWriter;
+        _oauthClientRepository = oauthClientRepository;
         _passwordHasher = passwordHasher;
-        _masterOptions = masterOptions.Value;
+        _tokenGenerator = tokenGenerator;
+        _jwtOptions = jwtOptions.Value;
         _defaultTenantSmtp = defaultTenantSmtp.Value;
         var mongo = mongoOptions.Value;
         var master = client.GetDatabase(mongo.MasterDatabaseName);
         _tenants = master.GetCollection<Tenant>("Tenants");
+        _emailTemplates = master.GetCollection<EmailTemplate>("EmailTemplates");
     }
 
-    public async Task<Tenant> ProvisionAsync(string name, CancellationToken cancellationToken = default)
+    public async Task<TenantProvisionResult> ProvisionAsync(
+        TenantProvisionRequest request,
+        CancellationToken cancellationToken = default)
     {
         var tenantId = Guid.NewGuid().ToString("N");
         var dbName = $"tenant_{tenantId}";
@@ -54,7 +61,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
         var tenant = new Tenant
         {
             Id = tenantId,
-            Name = name,
+            Name = request.Name,
             DatabaseName = dbName,
             ConnectionString = null,
             Active = true
@@ -84,9 +91,90 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
         if (!string.IsNullOrEmpty(mongoInner))
             await _usersSchemaApplier.ApplyAsync(tenant.Id, mongoInner, cancellationToken);
 
-        await TrySeedBootstrapAdminAsync(tenant.Id, cancellationToken);
+        await SeedClientCredentialsEmailTemplateAsync(tenant, now, cancellationToken);
 
-        return tenant;
+        var clientId = $"client_{tenantId}";
+        var clientSecret = _tokenGenerator.GenerateClientSecret();
+        var oauthClient = new OAuthClient
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            ClientId = clientId,
+            ClientSecretHash = _passwordHasher.Hash(clientSecret),
+            DisplayName = "Cliente principal",
+            TokenConfig = CreateDefaultTokenConfig(tenantId),
+            Active = true,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        await _oauthClientRepository.InsertAsync(tenant.Id, oauthClient, cancellationToken);
+
+        return new TenantProvisionResult(tenant, clientId, clientSecret);
+    }
+
+    private OAuthClientTokenConfiguration CreateDefaultTokenConfig(string tenantId) =>
+        new()
+        {
+            AccessTokenExpirationMinutes = _jwtOptions.ExpirationMinutes,
+            RefreshTokenExpirationDays = _jwtOptions.RefreshTokenExpirationDays,
+            MaxRefreshTokenUses = _jwtOptions.MaxRefreshTokenUses,
+            Values =
+            [
+                new OAuthClientTokenClaimValue
+                {
+                    Type = TokenClaimTypes.Issuer,
+                    Value = $"{_jwtOptions.Issuer}/{tenantId}"
+                },
+                new OAuthClientTokenClaimValue
+                {
+                    Type = TokenClaimTypes.Audience,
+                    Value = $"{_jwtOptions.Audience}/{tenantId}"
+                },
+                new OAuthClientTokenClaimValue
+                {
+                    Type = TokenClaimTypes.Scope,
+                    Value = OAuthClientsScopes.Owner
+                }
+            ]
+        };
+
+    private async Task SeedClientCredentialsEmailTemplateAsync(
+        Tenant tenant,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var template = new EmailTemplate
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            TenantId = tenant.Id,
+            Key = ClientCredentialsTemplateKey,
+            DisplayName = "Credenciais client_credentials",
+            Subject = "Credenciais OAuth — {{tenantName}}",
+            HtmlBody = """
+                <p>Olá,</p>
+                <p>O tenant <strong>{{tenantName}}</strong> foi criado com sucesso.</p>
+                <p>Utilize as credenciais abaixo para autenticação <code>client_credentials</code>:</p>
+                <ul>
+                  <li><strong>Tenant ID:</strong> {{tenantId}}</li>
+                  <li><strong>Client ID:</strong> {{clientId}}</li>
+                  <li><strong>Client Secret:</strong> {{clientSecret}}</li>
+                </ul>
+                <p>Guarde o segredo em local seguro; não será reenviado.</p>
+                """,
+            TextBody = """
+                O tenant {{tenantName}} foi criado.
+
+                Tenant ID: {{tenantId}}
+                Client ID: {{clientId}}
+                Client Secret: {{clientSecret}}
+
+                Guarde o segredo em local seguro; não será reenviado.
+                """,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        await _emailTemplates.InsertOneAsync(template, cancellationToken: cancellationToken);
     }
 
     private async Task SeedTenantSmtpSettingsAsync(string tenantDatabaseName, CancellationToken cancellationToken)
@@ -115,33 +203,5 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
             .GetCollection<TenantSmtpSettingsRoot>(TenantSmtpSettingsRoot.CollectionName);
 
         await coll.InsertOneAsync(doc, cancellationToken: cancellationToken);
-    }
-
-    private async Task TrySeedBootstrapAdminAsync(string tenantId, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(_masterOptions.TenantBootstrapAdminPassword))
-            return;
-
-        var username = _masterOptions.TenantBootstrapAdminUsername.Trim().ToLowerInvariant();
-        if (await _userAccountWriter.UsernameExistsAsync(tenantId, username, cancellationToken))
-            return;
-
-        var email = "admin@localhost";
-        if (await _userAccountWriter.EmailExistsAsync(tenantId, email, cancellationToken))
-            return;
-
-        var hash = _passwordHasher.Hash(_masterOptions.TenantBootstrapAdminPassword);
-        var payload = new Dictionary<string, object?>
-        {
-            ["email"] = email,
-            ["username"] = username,
-            ["password"] = hash,
-            ["roles"] = new[] { UserRoles.Admin },
-            ["createdAtUtc"] = DateTime.UtcNow,
-            ["status"] = AccountStatuses.Active
-        };
-
-        var json = JsonSerializer.Serialize(payload);
-        await _userAccountWriter.InsertAsync(tenantId, json, cancellationToken);
     }
 }

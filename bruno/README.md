@@ -56,7 +56,7 @@ Variáveis comuns: `tenantId`, `jwt`, `loginUsername` / `loginPassword`, `provis
 - Em **Development**, o bootstrap cria **`roles: ["admin"]`** para o utilizador inicial.
 - No JWT, cada role aparece como claim **`role`** repetida.
 - **Account JSON Schemas**: criar/atualizar/apagar exige **admin**; listar/obter por id bastam utilizador do tenant.
-- **Email API**: **Send** e CRUD de templates exigem **TenantAdmin**; listar/obter template exige utilizador autenticado no tenant.
+- **Email API**: autorização por roles (`template-read`, `template-write`, `send-email`) ou scope `email-admin` (acesso total).
 
 ## Ordem sugerida (API principal)
 

@@ -5,8 +5,10 @@ using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Security;
 using Lightcode.Registration.Infrastructure;
 using Lightcode.Registration.Infrastructure.Persistence.Mongo;
+using Lightcode.Registration.AspNetCore.Security;
 using Lightcode.Registration.Middleware;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -74,6 +76,8 @@ public static class RegistrationApiHostExtensions
 
         builder.Services.AddHttpContextAccessor();
 
+        builder.Services.AddScoped<IJwtTenantTokenValidator, JwtTenantTokenValidator>();
+
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(o =>
             {
@@ -82,15 +86,27 @@ public static class RegistrationApiHostExtensions
                 {
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection.SigningKey)),
-                    ValidateIssuer = true,
-                    ValidIssuer = jwtSection.Issuer,
-                    ValidateAudience = true,
-                    ValidAudience = jwtSection.Audience,
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.FromMinutes(1),
                     RoleClaimType = "role"
                 };
+
+                o.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var validator = context.HttpContext.RequestServices
+                            .GetRequiredService<IJwtTenantTokenValidator>();
+                        await validator.ValidateAsync(context);
+                    }
+                };
             });
+
+        builder.Services.AddSingleton<IAuthorizationHandler, EmailApiPermissionAuthorizationHandler>();
+        builder.Services.AddSingleton<IAuthorizationHandler, OAuthClientsPermissionAuthorizationHandler>();
+        builder.Services.AddSingleton<IAuthorizationHandler, AccountsAdminAuthorizationHandler>();
 
         builder.Services.AddAuthorization(o =>
         {
@@ -105,6 +121,48 @@ public static class RegistrationApiHostExtensions
                 p.RequireAuthenticatedUser();
                 p.RequireClaim("tenantId");
                 p.RequireRole(UserRoles.Admin);
+            });
+
+            o.AddPolicy(EmailApiPolicyNames.TemplateRead, p =>
+            {
+                p.RequireAuthenticatedUser();
+                p.RequireClaim("tenantId");
+                p.AddRequirements(new EmailApiPermissionRequirement(EmailApiPermission.TemplateRead));
+            });
+
+            o.AddPolicy(EmailApiPolicyNames.TemplateWrite, p =>
+            {
+                p.RequireAuthenticatedUser();
+                p.RequireClaim("tenantId");
+                p.AddRequirements(new EmailApiPermissionRequirement(EmailApiPermission.TemplateWrite));
+            });
+
+            o.AddPolicy(EmailApiPolicyNames.SendEmail, p =>
+            {
+                p.RequireAuthenticatedUser();
+                p.RequireClaim("tenantId");
+                p.AddRequirements(new EmailApiPermissionRequirement(EmailApiPermission.SendEmail));
+            });
+
+            o.AddPolicy(OAuthClientsPolicyNames.ClientsRead, p =>
+            {
+                p.RequireAuthenticatedUser();
+                p.RequireClaim("tenantId");
+                p.AddRequirements(new OAuthClientsPermissionRequirement(OAuthClientsPermission.ClientsRead));
+            });
+
+            o.AddPolicy(OAuthClientsPolicyNames.ClientsWrite, p =>
+            {
+                p.RequireAuthenticatedUser();
+                p.RequireClaim("tenantId");
+                p.AddRequirements(new OAuthClientsPermissionRequirement(OAuthClientsPermission.ClientsWrite));
+            });
+
+            o.AddPolicy(AccountsPolicyNames.AccountsAdmin, p =>
+            {
+                p.RequireAuthenticatedUser();
+                p.RequireClaim("tenantId");
+                p.AddRequirements(new AccountsAdminRequirement());
             });
         });
 

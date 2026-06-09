@@ -1,0 +1,45 @@
+meta {
+  name: Create OAuth Client
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/oauth-clients
+  body: json
+  auth: bearer
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{jwt}}
+}
+
+body:json {
+  {
+    "displayName": "FinAi Integration",
+    "notifyEmail": "admin@example.com",
+    "tokenConfig": {
+      "accessTokenExpirationMinutes": 30,
+      "refreshTokenExpirationDays": 30,
+      "maxRefreshTokenUses": 5,
+      "values": [
+        { "type": "iss", "value": "FinAi" },
+        { "type": "scope", "value": "admin" },
+        { "type": "scope", "value": "FinAi" },
+        { "type": "role", "value": "send-email" }
+      ]
+    }
+  }
+}
+
+docs {
+  # Criar cliente OAuth
+  
+  **POST** `/api/oauth-clients` — requer role `clients-write` ou scope `owner`.
+  
+  A configuração de token (`tokenConfig`) fica embutida no cliente.
+  O `clientSecret` é devolvido uma única vez na resposta; opcionalmente enviado por email via `notifyEmail`.
+  
+  O cliente owner criado no provisionamento do tenant já inclui scope `owner`.
+}

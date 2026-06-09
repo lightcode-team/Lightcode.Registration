@@ -18,10 +18,10 @@ public sealed class TenantsController(ITenantOnboardingAppService onboardingAppS
         Request.Headers.TryGetValue("X-Provisioning-Key", out var keyHeader);
         var provisioningKey = keyHeader.FirstOrDefault();
 
-        var command = new CreateTenantCommand(body.Name, provisioningKey);
+        var command = new CreateTenantCommand(body.Name, body.AdminEmail, provisioningKey);
         var result = await onboardingAppService.CreateTenantAsync(command, cancellationToken);
         return result.ToApiResponse();
     }
 }
 
-public sealed record CreateTenantRequest(string? Name);
+public sealed record CreateTenantRequest(string? Name, string? AdminEmail);

@@ -11,6 +11,7 @@ public interface IAccountUpdateAppService
         string targetUserId,
         string actorUserId,
         IEnumerable<string> actorRoleClaims,
+        IEnumerable<string> actorScopeClaims,
         string patchJson,
         CancellationToken cancellationToken = default);
 }

@@ -29,7 +29,7 @@ body:json {
 }
 
 docs {
-  **POST** `/api/email-templates` — **TenantAdmin**.
+  **POST** `/api/email-templates` — requer role `template-write` ou scope `email-admin`.
 
   `key` é única por tenant. Corpo HTML/texto pode usar placeholders alinhados com `parameters` em **Send Email**.
 }

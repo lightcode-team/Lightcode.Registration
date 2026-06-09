@@ -12,12 +12,12 @@ namespace Lightcode.Registration.Controllers;
 public sealed class AuthController(IAuthenticationAppService authenticationAppService) : ControllerBase
 {
     /// <summary>
-    /// Emite JWT com <c>sub</c> (id do utilizador) e <c>tenantId</c> após validar username e password.
+    /// Emite JWT e refresh token. Suporta <c>grant_type</c>: <c>password</c>, <c>refresh_token</c>, <c>client_credentials</c>.
     /// Envie o tenant no cabeçalho <see cref="TenantHttpHeaders.TenantId"/> (pedido anónimo, sem JWT).
     /// </summary>
     [HttpPost("token")]
     [AllowAnonymous]
-    public async Task<IActionResult> IssueToken([FromBody] IssueTokenRequest body, CancellationToken cancellationToken)
+    public async Task<IActionResult> IssueToken([FromBody] TokenRequest body, CancellationToken cancellationToken)
     {
         var tenantId = TenantHttpHeaders.TryGetTenantId(Request);
         if (tenantId is null)

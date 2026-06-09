@@ -4,7 +4,7 @@ RegistrationHostEnvironment.LoadDotEnvIfPresent();
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddRegistrationApiHost();
+builder.AddRegistrationApiHost(o => o.RegisterRabbitMqConnection = true);
 
 var app = builder.Build();
 

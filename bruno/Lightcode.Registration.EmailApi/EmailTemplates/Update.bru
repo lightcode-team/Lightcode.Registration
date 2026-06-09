@@ -28,5 +28,5 @@ body:json {
 }
 
 docs {
-  **PUT** `/api/email-templates/{id}` — **TenantAdmin**. Envie apenas os campos a alterar (todos opcionais no contrato).
+  **PUT** `/api/email-templates/{id}` — requer role `template-write` ou scope `email-admin`. Envie apenas os campos a alterar (todos opcionais no contrato).
 }

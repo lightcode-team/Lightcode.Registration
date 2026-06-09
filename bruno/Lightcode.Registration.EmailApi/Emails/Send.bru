@@ -31,7 +31,7 @@ body:json {
 docs {
   # Enfileirar envio de email
 
-  **POST** `/api/emails/send` — requer JWT com **TenantAdmin** (role `admin` no tenant).
+  **POST** `/api/emails/send` — requer role `send-email` ou scope `email-admin`.
 
   No corpo use **`templateId`** **ou** **`templateKey`**, não ambos.
 

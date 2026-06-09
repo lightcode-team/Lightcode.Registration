@@ -20,6 +20,8 @@ public static class MongoSerialization
             RegisterAccountJsonSchema();
             RegisterEmailTemplate();
             RegisterTenantSmtpSettings();
+            RegisterOAuthClient();
+            RegisterRefreshToken();
             _registered = true;
         }
     }
@@ -98,6 +100,50 @@ public static class MongoSerialization
         {
             cm.AutoMap();
             cm.SetIgnoreExtraElements(true);
+        });
+    }
+
+    private static void RegisterOAuthClient()
+    {
+        if (BsonClassMap.IsClassMapRegistered(typeof(OAuthClient)))
+            return;
+
+        BsonClassMap.RegisterClassMap<OAuthClient>(cm =>
+        {
+            cm.AutoMap();
+            cm.SetIgnoreExtraElements(true);
+            cm.MapIdProperty(x => x.Id);
+        });
+
+        if (BsonClassMap.IsClassMapRegistered(typeof(OAuthClientTokenConfiguration)))
+            return;
+
+        BsonClassMap.RegisterClassMap<OAuthClientTokenConfiguration>(cm =>
+        {
+            cm.AutoMap();
+            cm.SetIgnoreExtraElements(true);
+        });
+
+        if (BsonClassMap.IsClassMapRegistered(typeof(OAuthClientTokenClaimValue)))
+            return;
+
+        BsonClassMap.RegisterClassMap<OAuthClientTokenClaimValue>(cm =>
+        {
+            cm.AutoMap();
+            cm.SetIgnoreExtraElements(true);
+        });
+    }
+
+    private static void RegisterRefreshToken()
+    {
+        if (BsonClassMap.IsClassMapRegistered(typeof(RefreshToken)))
+            return;
+
+        BsonClassMap.RegisterClassMap<RefreshToken>(cm =>
+        {
+            cm.AutoMap();
+            cm.SetIgnoreExtraElements(true);
+            cm.MapIdProperty(x => x.Id);
         });
     }
 }

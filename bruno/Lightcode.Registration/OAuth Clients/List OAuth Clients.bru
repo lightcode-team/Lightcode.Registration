@@ -1,0 +1,25 @@
+meta {
+  name: List OAuth Clients
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/oauth-clients
+  body: none
+  auth: bearer
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+docs {
+  # Listar clientes OAuth
+  
+  **GET** `/api/oauth-clients` — requer role `clients-read` ou scope `owner`.
+}

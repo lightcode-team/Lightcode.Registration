@@ -1,0 +1,39 @@
+meta {
+  name: Refresh Token
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/auth/token
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Tenant-Id: {{tenantId}}
+}
+
+body:json {
+  {
+    "grant_type": "refresh_token",
+    "refresh_token": "{{refreshToken}}"
+  }
+}
+
+docs {
+  # Renovar access token
+  
+  **POST** `/api/auth/token`
+  
+  - **Header obrigatório:** `X-Tenant-Id`
+  - **Corpo:** `grant_type=refresh_token`, `refresh_token`
+  
+  O mesmo refresh token pode ser reutilizado até `MaxRefreshTokenUses` (configuração do tenant).
+  
+  ## Resposta (Data)
+  - `access_token` — novo JWT
+  - `refresh_token` — mesmo valor enviado (não há rotação automática)
+  - `expires_in` — segundos
+}

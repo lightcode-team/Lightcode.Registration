@@ -11,7 +11,11 @@ docs {
   ## Antes de testar
   1. Na coleção **Lightcode.Registration**: **Create Tenant** e **Issue Token** (ou registo + token).
   2. Copie o `access_token` para a variável `jwt` **neste** ambiente Bruno (LOCAL/DOCKER da Email API).
-  3. **Send** e gestão de templates exigem política **TenantAdmin** (token com role `admin`).
+  3. Autorização por **roles** e **scope** no JWT:
+     - `template-read` — listar/obter templates
+     - `template-write` — criar/atualizar/apagar templates
+     - `send-email` — enfileirar envio
+     - scope `email-admin` — acesso total à Email API
 
   ## Portas
   - **LOCAL** — `dotnet run` em `Lightcode.Registration.EmailApi`, HTTP **5013**.

@@ -15,7 +15,7 @@ auth:bearer {
 }
 
 docs {
-  **GET** `/api/email-templates/{id}`
+  **GET** `/api/email-templates/{id}` — requer role `template-read` ou scope `email-admin`.
 
   Defina `emailTemplateId` no ambiente (copiar de **List Email Templates**).
 }

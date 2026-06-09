@@ -46,5 +46,26 @@ public static class UserRoles
 
     /// <summary>Verifica admin a partir das claims <c>role</c> do JWT (várias entradas).</summary>
     public static bool IsAdminFromClaims(IEnumerable<string>? roleClaims) =>
-        IsAdmin(NormalizeMany(roleClaims));
+        roleClaims?.Any(r => string.Equals(r?.Trim(), Admin, StringComparison.OrdinalIgnoreCase)) ?? false;
+
+    /// <summary>Normaliza roles de conta preservando valores customizados (ex.: <c>template-read</c>).</summary>
+    public static IReadOnlyList<string> NormalizeAccountRoles(IEnumerable<string?>? roles)
+    {
+        if (roles is null)
+            return [User];
+
+        var ordered = new SortedSet<string>(StringComparer.Ordinal);
+        foreach (var r in roles)
+        {
+            if (string.IsNullOrWhiteSpace(r))
+                continue;
+
+            ordered.Add(r.Trim().ToLowerInvariant());
+        }
+
+        if (ordered.Count == 0)
+            ordered.Add(User);
+
+        return ordered.ToList();
+    }
 }

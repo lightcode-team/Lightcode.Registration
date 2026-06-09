@@ -1,6 +1,7 @@
 using Lightcode.Registration.Api;
 using Lightcode.Registration.Application.Contracts.Email;
 using Lightcode.Registration.Application.Emails.Commands;
+using Lightcode.Registration.Application.Security;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -17,7 +18,7 @@ public sealed class EmailsController(IMediator mediator) : ControllerBase
         User.FindFirst("tenantId")?.Value ?? throw new InvalidOperationException("tenantId em falta no token.");
 
     /// <summary>Enfileira envio de email (CQRS + RabbitMQ). Use <c>templateId</c> ou <c>templateKey</c>, não ambos.</summary>
-    //[Authorize(Policy = "TenantAdmin")]
+    [Authorize(Policy = EmailApiPolicyNames.SendEmail)]
     [HttpPost("send")]
     public async Task<IActionResult> Send([FromBody] SendEmailRequest body, CancellationToken cancellationToken)
     {

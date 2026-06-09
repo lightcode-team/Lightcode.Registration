@@ -1,5 +1,5 @@
 meta {
-  name: Issue Token
+  name: Issue Token (password)
   type: http
   seq: 1
 }
@@ -17,6 +17,7 @@ headers {
 
 body:json {
   {
+    "grant_type": "password",
     "username": "{{loginUsername}}",
     "password": "{{loginPassword}}"
   }
@@ -28,21 +29,22 @@ vars:pre-request {
 }
 
 docs {
-  # Emitir JWT (login)
+  # Emitir JWT (password grant)
   
   **POST** `/api/auth/token`
   
   - **Header obrigatório:** `X-Tenant-Id` — id do tenant (não vai no corpo).
-  - **Corpo:** `username` e `password` (utilizador na coleção `Users` do tenant).
+  - **Corpo:** `grant_type=password`, `username` e `password`.
   
   ## Resposta (Data)
   - `access_token` — colar no ambiente LOCAL na variável `jwt`
+  - `refresh_token` — colar em `refreshToken`
   - `token_type` — `Bearer`
   - `expires_in` — segundos
   
-  O JWT inclui `sub` (id do utilizador em Mongo) e `tenantId`.
+  O JWT inclui `sub` (id do utilizador em Mongo) e `tenantId` com `iss`/`aud` específicos do tenant.
   
   ## Erros comuns
-  - `400` — falta `X-Tenant-Id` ou username/password
+  - `400` — falta `X-Tenant-Id` ou campos obrigatórios
   - `401` — tenant inativo ou credenciais inválidas
 }

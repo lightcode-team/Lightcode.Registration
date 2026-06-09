@@ -2,6 +2,7 @@ using Lightcode.Registration.Api;
 using Lightcode.Registration.Application.Contracts.Email;
 using Lightcode.Registration.Application.Emails.Commands;
 using Lightcode.Registration.Application.Emails.Queries;
+using Lightcode.Registration.Application.Security;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -17,7 +18,7 @@ public sealed class EmailTemplatesController(IMediator mediator) : ControllerBas
     private string CurrentTenantId =>
         User.FindFirst("tenantId")?.Value ?? throw new InvalidOperationException("tenantId em falta no token.");
 
-    [Authorize(Policy = "HasTenant")]
+    [Authorize(Policy = EmailApiPolicyNames.TemplateRead)]
     [HttpGet]
     public async Task<IActionResult> List(CancellationToken cancellationToken)
     {
@@ -25,7 +26,7 @@ public sealed class EmailTemplatesController(IMediator mediator) : ControllerBas
         return result.ToApiResponse();
     }
 
-    [Authorize(Policy = "HasTenant")]
+    [Authorize(Policy = EmailApiPolicyNames.TemplateRead)]
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(string id, CancellationToken cancellationToken)
     {
@@ -33,7 +34,7 @@ public sealed class EmailTemplatesController(IMediator mediator) : ControllerBas
         return result.ToApiResponse();
     }
 
-    [Authorize(Policy = "TenantAdmin")]
+    [Authorize(Policy = EmailApiPolicyNames.TemplateWrite)]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateEmailTemplateRequest body, CancellationToken cancellationToken)
     {
@@ -41,7 +42,7 @@ public sealed class EmailTemplatesController(IMediator mediator) : ControllerBas
         return result.ToApiResponse();
     }
 
-    [Authorize(Policy = "TenantAdmin")]
+    [Authorize(Policy = EmailApiPolicyNames.TemplateWrite)]
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(string id, [FromBody] UpdateEmailTemplateRequest body, CancellationToken cancellationToken)
     {
@@ -49,7 +50,7 @@ public sealed class EmailTemplatesController(IMediator mediator) : ControllerBas
         return result.ToApiResponse();
     }
 
-    [Authorize(Policy = "TenantAdmin")]
+    [Authorize(Policy = EmailApiPolicyNames.TemplateWrite)]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
     {

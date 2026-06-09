@@ -29,6 +29,7 @@ public sealed class AccountUpdateAppService(
         string targetUserId,
         string actorUserId,
         IEnumerable<string> actorRoleClaims,
+        IEnumerable<string> actorScopeClaims,
         string patchJson,
         CancellationToken cancellationToken = default)
     {
@@ -39,7 +40,7 @@ public sealed class AccountUpdateAppService(
         if (tenant is null)
             return ServiceResult<UpdateAccountResult>.Fail(404, "Tenant não encontrado ou inativo.");
 
-        var isAdmin = UserRoles.IsAdminFromClaims(actorRoleClaims);
+        var isAdmin = AccountAccessRules.IsAccountsAdmin(actorRoleClaims, actorScopeClaims);
         if (!isAdmin && !string.Equals(actorUserId.Trim(), targetUserId.Trim(), StringComparison.OrdinalIgnoreCase))
             return ServiceResult<UpdateAccountResult>.Fail(403, "Só pode alterar a sua própria conta ou ser administrador.");
 
@@ -102,7 +103,7 @@ public sealed class AccountUpdateAppService(
                         list.Add(null);
                 }
 
-                merged["roles"] = new JsonArray(UserRoles.NormalizeMany(list).Select(r => JsonValue.Create(r)!).ToArray());
+                merged["roles"] = new JsonArray(UserRoles.NormalizeAccountRoles(list).Select(r => JsonValue.Create(r)!).ToArray());
                 continue;
             }
 

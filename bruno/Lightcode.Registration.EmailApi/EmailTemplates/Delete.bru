@@ -15,5 +15,5 @@ auth:bearer {
 }
 
 docs {
-  **DELETE** `/api/email-templates/{id}` — **TenantAdmin**.
+  **DELETE** `/api/email-templates/{id}` — requer role `template-write` ou scope `email-admin`.
 }

@@ -1,0 +1,36 @@
+meta {
+  name: Update Roles
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/accounts/{{targetUserId}}/roles
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "roles": ["admin", "user"]
+  }
+}
+
+docs {
+  # Atualizar roles de utilizador
+  
+  **PUT** `/api/accounts/{userId}/roles`
+  
+  Requer JWT com role `admin` ou scope `owner`.
+  Substitui completamente o array `roles` do utilizador.
+  
+  Defina `targetUserId` no ambiente (id Mongo da conta).
+}
