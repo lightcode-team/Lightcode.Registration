@@ -80,7 +80,7 @@ public sealed class RegistrationExpiryScanHostedService(
                 var status = doc.Contains("status") && doc["status"].IsString
                     ? doc["status"].AsString
                     : AccountStatuses.Active;
-                if (status is AccountStatuses.Expired or AccountStatuses.PendingConfirmation)
+                if (status is AccountStatuses.Expired or AccountStatuses.PendingConfirmation or AccountStatuses.Incomplete)
                     continue;
 
                 var expiresUtc = doc["registrationExpiresAtUtc"].ToUniversalTime();

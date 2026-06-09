@@ -117,7 +117,7 @@ public sealed class AuthenticationAppService(
         if (string.Equals(stored.SubjectType, TokenSubjectTypes.User, StringComparison.Ordinal))
         {
             var status = await userAccountWriter.GetUserStatusAsync(tenantId, stored.SubjectId, cancellationToken);
-            if (status is not AccountStatuses.Active)
+            if (status is not AccountStatuses.Active and not AccountStatuses.Incomplete)
                 return ServiceResult<IssueTokenResponse>.Fail(401, "Conta inativa ou email não confirmado.");
         }
 

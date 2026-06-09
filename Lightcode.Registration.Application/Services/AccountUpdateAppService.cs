@@ -150,7 +150,10 @@ public sealed class AccountUpdateAppService(
         }
 
         var validationJson = merged.ToJsonString();
-        var errors = jsonSchemaValidation.Validate(schemaEntity.SchemaJson, validationJson);
+        var errors = jsonSchemaValidation.Validate(
+            schemaEntity.SchemaJson,
+            validationJson,
+            JsonSchemaValidationMode.Partial);
         if (errors.Count > 0)
             return ServiceResult<UpdateAccountResult>.Fail(400, errors.ToArray());
 
@@ -161,7 +164,7 @@ public sealed class AccountUpdateAppService(
             ? statusValue
             : AccountStatuses.Active;
 
-        if (currentStatus != AccountStatuses.PendingConfirmation
+        if (currentStatus is not AccountStatuses.PendingConfirmation and not AccountStatuses.Incomplete
             && AccountSchemaConfigParser.TryGetRegistrationExpiry(schemaEntity.ConfigJson, out var renewalDays))
         {
             merged["status"] = JsonValue.Create(AccountStatuses.Active);

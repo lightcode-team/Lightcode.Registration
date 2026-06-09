@@ -16,11 +16,13 @@ public sealed class AccountsController(
     IAccountRegistrationAppService accountRegistrationAppService,
     IAccountAdminAppService accountAdminAppService,
     IAccountUpdateAppService accountUpdateAppService,
+    IAccountCompleteRegistrationAppService accountCompleteRegistrationAppService,
     IAccountEmailConfirmationAppService accountEmailConfirmationAppService,
     IAccountPasswordResetAppService accountPasswordResetAppService) : ControllerBase
 {
     /// <summary>
-    /// Registo público de conta. Exige <c>schemaId</c>, <c>email</c>, <c>username</c> e <c>password</c> (JSON Schema indicado).
+    /// Registo público de conta (salvamento parcial). Exige <c>schemaId</c>, <c>email</c>, <c>username</c> e <c>password</c>.
+    /// Campos <c>required</c> do JSON Schema não são obrigatórios nesta etapa; use <c>POST /api/accounts/{userId}/complete-register</c> para concluir.
     /// Preferir o cabeçalho <see cref="TenantHttpHeaders.TenantId"/>; o cabeçalho tem prioridade sobre <paramref name="tenantId"/> na URL.
     /// </summary>
     [AllowAnonymous]
@@ -110,8 +112,41 @@ public sealed class AccountsController(
     }
 
     /// <summary>
+    /// Conclui o registo: valida todos os campos <c>required</c> do JSON Schema e ativa a conta (ou envia confirmação 2FA).
+    /// O tenant vem do claim <c>tenantId</c> do JWT. Apenas o próprio utilizador ou um administrador pode concluir.
+    /// </summary>
+    [HttpPost("~/api/accounts/{userId}/complete-register")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = "HasTenant")]
+    public async Task<IActionResult> CompleteRegister(
+        string userId,
+        [FromBody] CompleteRegisterRequest? body,
+        CancellationToken cancellationToken)
+    {
+        var tenantId = User.FindFirst("tenantId")?.Value;
+        if (string.IsNullOrWhiteSpace(tenantId))
+            return ApiResponse.Error(400, "tenantId em falta no token.");
+
+        var actorUserId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        if (string.IsNullOrWhiteSpace(actorUserId))
+            return ApiResponse.Error(401, "Identificador de utilizador em falta no token.");
+
+        var roles = User.FindAll("role").Select(c => c.Value);
+        var scopes = User.FindAll("scope").Select(c => c.Value);
+        var result = await accountCompleteRegistrationAppService.CompleteRegisterAsync(
+            tenantId,
+            userId,
+            actorUserId,
+            roles,
+            scopes,
+            body,
+            cancellationToken);
+
+        return result.ToApiResponse();
+    }
+
+    /// <summary>
     /// Atualização parcial da conta (merge sobre o documento existente). O tenant vem do claim <c>tenantId</c> do JWT.
-    /// Apenas o próprio utilizador ou um administrador do tenant pode atualizar. O documento resultante é validado contra o JSON Schema da conta (<c>schemaId</c>).
+    /// Apenas o próprio utilizador ou um administrador do tenant pode atualizar. Campos <c>required</c> do schema não são exigidos nesta etapa.
     /// </summary>
     [HttpPut("~/api/accounts/{userId}")]
     [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = "HasTenant")]

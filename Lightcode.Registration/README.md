@@ -72,12 +72,13 @@ Cada tenant tem base MongoDB isolada. O isolamento é físico (banco dedicado), 
 
 | Método | Rota | Auth | Descrição |
 |--------|------|------|-----------|
-| POST | `/api/accounts` | `X-Tenant-Id` | Registo público |
+| POST | `/api/accounts` | `X-Tenant-Id` | Registo público (parcial; `status: Incomplete`) |
 | POST | `/api/tenants/{tenantId}/accounts` | — | Registo (rota legada) |
 | GET | `/api/accounts` | JWT (`admin` / `owner`) | Listar contas |
 | GET | `/api/accounts/{userId}` | JWT (`admin` / `owner`) | Detalhe da conta |
 | POST | `/api/accounts/admin` | JWT (`admin` / `owner`) | Registo por administrador |
-| PUT | `/api/accounts/{userId}` | JWT | Atualização parcial |
+| PUT | `/api/accounts/{userId}` | JWT | Atualização parcial (validação parcial do schema) |
+| POST | `/api/accounts/{userId}/complete-register` | JWT | Concluir cadastro por steps (validação completa + ativação) |
 | PUT | `/api/accounts/{userId}/roles` | JWT (`admin` / `owner`) | Atualizar roles |
 | POST | `/api/accounts/confirm-email-code/{code}` | `X-Tenant-Id` | Confirmação 2FA (código) |
 | GET | `/api/accounts/confirm-email/{token}` | Query `tenantId`, `email` | Confirmação 2FA (link) |
@@ -92,6 +93,186 @@ Cada tenant tem base MongoDB isolada. O isolamento é físico (banco dedicado), 
 | POST | `/api/account-json-schemas` | JWT (`admin`) | Criar |
 | PUT | `/api/account-json-schemas/{id}` | JWT (`admin`) | Atualizar |
 | DELETE | `/api/account-json-schemas/{id}` | JWT (`admin`) | Apagar |
+
+## JSON Schema de conta
+
+Cada tenant pode ter vários schemas na coleção `AccountJsonSchemas`. Cada schema define **como validar o corpo de cadastro/atualização** (`schemaJson`) e **regras de negócio opcionais** (`config`).
+
+O motor de validação usa [JsonSchema.Net](https://github.com/gregsdennis/json-everything) (draft). Quando um schema é marcado como `isDefault: true`, o validador Mongo da coleção `Users` é atualizado automaticamente (tipos e estrutura; `required` da raiz **não** é imposto no Mongo — ver abaixo).
+
+### Campos do schema (API)
+
+| Campo | Obrigatório | Descrição |
+|-------|-------------|-----------|
+| `key` | Sim | Identificador único por tenant (ex.: `default`, `premium-v1`) |
+| `displayName` | Não | Nome amigável |
+| `schemaJson` | Sim | Objeto JSON Schema (não string) |
+| `config` | Não | Regras de negócio (ver secção abaixo) |
+| `isDefault` | Não | Se `true`, torna-se o schema default e atualiza o validador Mongo de `Users` |
+
+No registo, o cliente envia `schemaId` no corpo (valor da `key` ou do `id` do schema).
+
+### Requisitos do `schemaJson`
+
+Todo schema de conta **deve** declarar em `properties` e em `required` da raiz:
+
+- `email` — `type: string`, recomendado `format: email`
+- `username` — `type: string`
+- `password` — `type: string`
+
+Campos adicionais (`phone`, `document`, objetos aninhados, etc.) são livres. Recomenda-se `additionalProperties: true` para extensibilidade.
+
+**Schema default** criado no provisionamento do tenant:
+
+```json
+{
+  "type": "object",
+  "required": ["email", "username", "password"],
+  "additionalProperties": true,
+  "properties": {
+    "email": { "type": "string", "format": "email" },
+    "username": { "type": "string", "minLength": 1 },
+    "password": { "type": "string", "minLength": 8 }
+  }
+}
+```
+
+### Exemplo com objeto aninhado
+
+Propriedades opcionais na raiz podem ser preenchidas em steps. Se um **objeto for enviado**, o `required` **interno** desse objeto é validado:
+
+```json
+{
+  "type": "object",
+  "required": ["email", "username", "password"],
+  "additionalProperties": true,
+  "properties": {
+    "email": { "type": "string", "format": "email" },
+    "username": { "type": "string", "minLength": 1 },
+    "password": { "type": "string", "minLength": 8 },
+    "address": {
+      "type": "object",
+      "required": ["bairro", "rua"],
+      "properties": {
+        "rua": { "type": "string", "minLength": 5 },
+        "bairro": { "type": "string", "minLength": 5 },
+        "numero": { "type": "string", "minLength": 5 }
+      }
+    }
+  }
+}
+```
+
+| Pedido | Resultado |
+|--------|-----------|
+| Sem `address` | Válido (cadastro parcial) |
+| `address` com `rua` e `bairro` | Válido (`numero` é opcional) |
+| `address` só com `rua` | Inválido — falta `bairro` |
+
+### Modos de validação
+
+| Endpoint | Modo | Comportamento |
+|----------|------|---------------|
+| `POST /api/accounts` | Parcial | Ignora `required` **da raiz**; valida tipos/formatos dos campos enviados; objetos aninhados enviados são validados por completo |
+| `PUT /api/accounts/{userId}` | Parcial | Idem (merge sobre o documento existente) |
+| `POST /api/accounts/{userId}/complete-register` | Completo | Exige todos os `required` da raiz; ativa a conta |
+| `POST /api/accounts/admin` | Completo | Registo administrativo com validação total |
+
+### Cadastro por steps (fluxo público)
+
+1. **Registo** — `POST /api/accounts` com `email`, `username`, `password` (+ campos opcionais). Conta criada com `status: Incomplete`.
+2. **Token** — `POST /api/auth/token` (login permitido em `Incomplete`).
+3. **Atualizações** — `PUT /api/accounts/{userId}` para preencher campos adicionais step a step.
+4. **Conclusão** — `POST /api/accounts/{userId}/complete-register` valida o documento completo contra o schema e define `status: Active` (ou `PendingConfirmation` se 2FA estiver ativo).
+
+### `config` — configurações personalizadas
+
+Objeto opcional com regras de negócio por schema. Propriedades reconhecidas:
+
+#### `validateDuplicateEmail`
+
+| Tipo | Default | Descrição |
+|------|---------|-----------|
+| `boolean` ou string `"true"` / `"false"` | `true` | Se `false`, o registo **não** verifica email duplicado (username continua único) |
+
+#### `Expiry`
+
+Controla expiração de cadastros **ativos** após a conclusão do registo.
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `expiryRegister` | `boolean` | Se `true`, define `registrationExpiresAtUtc` na conclusão do registo |
+| `daysExpiry` | `int` | Dias até expirar (obrigatório > 0 quando `expiryRegister` é `true`) |
+
+Quando ativo, o **Worker** verifica periodicamente contas com `registrationExpiresAtUtc` vencido e define `status: Expired`. Também envia lembretes por email (30 e 15 dias antes). Contas `Incomplete` ou `PendingConfirmation` são ignoradas pelo scan.
+
+Na **atualização** de conta já ativa, se o schema tiver `Expiry` ativo, a data de expiração é renovada.
+
+#### `2FA`
+
+Confirmação de email em duas etapas. Aplicada na **conclusão** do registo (`complete-register`) ou no registo por admin — não no registo público parcial.
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `Active` | `boolean` | Liga/desliga confirmação por email |
+| `Type` | `"Code"` ou `"Link"` | Obrigatório quando `Active` é `true` |
+
+| `Type` | Comportamento | Endpoint de confirmação |
+|--------|---------------|-------------------------|
+| `Code` | Código numérico no email; opcional `confirmationReturnUrl` no `complete-register` para URL do frontend | `POST /api/accounts/confirm-email-code/{code}` |
+| `Link` | Link com token no email | `GET /api/accounts/confirm-email/{token}?tenantId=...&email=...` |
+
+Templates de email seed no tenant: `email-confirmation-code` e `email-confirmation-link`. O código/link expira em **30 minutos**.
+
+### Exemplo completo de criação
+
+`POST /api/account-json-schemas` (JWT com role `admin`):
+
+```json
+{
+  "key": "custom-v1",
+  "displayName": "Schema personalizado",
+  "config": {
+    "validateDuplicateEmail": "false",
+    "Expiry": {
+      "expiryRegister": false,
+      "daysExpiry": 360
+    },
+    "2FA": {
+      "Active": true,
+      "Type": "Code"
+    }
+  },
+  "schemaJson": {
+    "type": "object",
+    "required": ["email", "username", "password"],
+    "additionalProperties": true,
+    "properties": {
+      "email": { "type": "string", "format": "email" },
+      "username": { "type": "string", "minLength": 1 },
+      "password": { "type": "string", "minLength": 8 }
+    }
+  },
+  "isDefault": false
+}
+```
+
+> `validateDuplicateEmail` aceita boolean ou string (`"false"`). As chaves `Expiry` e `2FA` são case-insensitive na desserialização.
+
+### Status da conta (`Users.status`)
+
+| Valor | Significado |
+|-------|-------------|
+| `Incomplete` | Cadastro iniciado; faltam campos ou conclusão |
+| `PendingConfirmation` | Aguardando confirmação de email (2FA) |
+| `Active` | Conta ativa |
+| `Expired` | Cadastro expirado (`Expiry` ativo) |
+
+### Validador Mongo (`Users`)
+
+O schema default é convertido para `$jsonSchema` do MongoDB (tipos em `properties`). O array `required` da raiz **não** é aplicado no Mongo, para permitir documentos parciais durante o cadastro por steps. A validação de campos obrigatórios fica na aplicação (`complete-register`).
+
+Tenants já provisionados precisam **reaplicar** o schema default (atualizar o schema com `isDefault: true`) para alinhar o validador Mongo após esta mudança.
 
 ### Clientes OAuth
 
@@ -136,7 +317,7 @@ Fluxo típico:
 
 1. **Create Tenant** → guardar `tenantId` e credenciais OAuth do email
 2. **Client Credentials** ou **Issue Token** → obter `jwt`
-3. **Register** / **AccountJsonSchemas** / **Forgot Password**
+3. **Register** → **Issue Token** → **Update** → **Complete Register** (cadastro por steps) / **AccountJsonSchemas** / **Forgot Password**
 
 ## Projetos relacionados
 

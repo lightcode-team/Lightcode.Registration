@@ -1,13 +1,20 @@
 using System.Text.Json.Nodes;
 using Json.Schema;
 using Lightcode.Registration.Application.Abstractions;
+using Lightcode.Registration.Application.SchemaConfig;
 
 namespace Lightcode.Registration.Application.Services;
 
 public sealed class JsonSchemaDocumentValidator : IJsonSchemaValidationService
 {
-    public IReadOnlyList<string> Validate(string schemaJson, string instanceJson)
+    public IReadOnlyList<string> Validate(
+        string schemaJson,
+        string instanceJson,
+        JsonSchemaValidationMode mode = JsonSchemaValidationMode.Full)
     {
+        if (mode == JsonSchemaValidationMode.Partial)
+            schemaJson = StripRequiredConstraints(schemaJson);
+
         JsonSchema schema;
         try
         {
@@ -56,5 +63,18 @@ public sealed class JsonSchemaDocumentValidator : IJsonSchemaValidationService
 
         foreach (var detail in node.Details)
             CollectErrors(detail, messages);
+    }
+
+    /// <summary>
+    /// Remove apenas <c>required</c> da raiz do schema.
+    /// Objetos aninhados mantêm o seu <c>required</c>: se o cliente enviar o objeto, as props obrigatórias são validadas.
+    /// </summary>
+    private static string StripRequiredConstraints(string schemaJson)
+    {
+        var node = JsonNode.Parse(schemaJson);
+        if (node is JsonObject root)
+            root.Remove("required");
+
+        return node!.ToJsonString();
     }
 }
