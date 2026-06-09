@@ -17,8 +17,8 @@ headers {
 
 body:json {
   {
-    "name": "BotMvp",
-    "adminEmail": "admin@example.com"
+    "name": "FinAi",
+    "adminEmail": "frederick.aquino45@gmail.com"
   }
 }
 
@@ -31,22 +31,20 @@ docs {
   
   **POST** `/api/tenants`
   
-  Provisiona tenant (database `tenant_{id}`), schema default de conta, configuração de auth e cliente OAuth.
-  O segredo `client_credentials` é enviado por email ao `adminEmail`.
+  Provisiona tenant (database `tenant_{id}`), schema default de conta e coleção `Users`.
   
   ## Headers
   - `X-Provisioning-Key` — obrigatório se `Master:ProvisioningApiKey` estiver definido; em Development pode ser vazio.
   
   ## Corpo
   - `name` — nome do tenant
-  - `adminEmail` — email do administrador (obrigatório)
   
   ## Resposta (Data)
   - `id` — **guardar em `tenantId`** no ambiente LOCAL para token e registo
-  - `name`, `databaseName`, `oauthClientId`
+  - `name`, `databaseName`
   
   ## Erros
-  - `400` — nome ou adminEmail inválido
+  - `400` — nome inválido
   - `401` — chave de provisionamento inválida
   - `403` — produção sem chave configurada
 }

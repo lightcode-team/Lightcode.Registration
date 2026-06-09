@@ -22,6 +22,12 @@ public sealed class TokenIssuanceProfile
 
     public string? ClientId { get; init; }
 
+    public string? UserId { get; init; }
+
+    public string? Email { get; init; }
+
+    public string? Username { get; init; }
+
     public static TokenIssuanceProfile FromOAuthClient(OAuthClient client)
     {
         var config = client.TokenConfig;
@@ -43,7 +49,13 @@ public sealed class TokenIssuanceProfile
         };
     }
 
-    public static TokenIssuanceProfile ForPasswordGrant(JwtOptions jwt, string tenantId, IReadOnlyList<string> roles)
+    public static TokenIssuanceProfile ForPasswordGrant(
+        JwtOptions jwt,
+        string tenantId,
+        IReadOnlyList<string> roles,
+        string? userId = null,
+        string? email = null,
+        string? username = null)
     {
         return new TokenIssuanceProfile
         {
@@ -53,7 +65,10 @@ public sealed class TokenIssuanceProfile
             RefreshTokenExpirationDays = jwt.RefreshTokenExpirationDays,
             MaxRefreshTokenUses = jwt.MaxRefreshTokenUses,
             Roles = roles,
-            Scopes = []
+            Scopes = [],
+            UserId = userId,
+            Email = email,
+            Username = username
         };
     }
 

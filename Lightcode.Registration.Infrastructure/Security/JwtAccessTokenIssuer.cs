@@ -27,6 +27,15 @@ public sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> jwtOptions) : IAcc
         if (!string.IsNullOrWhiteSpace(profile.ClientId))
             claims.Add(new Claim("client_id", profile.ClientId));
 
+        if (!string.IsNullOrWhiteSpace(profile.UserId))
+            claims.Add(new Claim("userId", profile.UserId));
+
+        if (!string.IsNullOrWhiteSpace(profile.Email))
+            claims.Add(new Claim(JwtRegisteredClaimNames.Email, profile.Email));
+
+        if (!string.IsNullOrWhiteSpace(profile.Username))
+            claims.Add(new Claim("username", profile.Username));
+
         foreach (var role in profile.Roles.Where(r => !string.IsNullOrWhiteSpace(r)))
             claims.Add(new Claim("role", role.Trim().ToLowerInvariant()));
 

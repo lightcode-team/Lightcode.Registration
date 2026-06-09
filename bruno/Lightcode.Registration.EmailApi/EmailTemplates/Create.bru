@@ -10,26 +10,26 @@ post {
   auth: bearer
 }
 
-auth:bearer {
-  token: {{jwt}}
-}
-
 headers {
   Content-Type: application/json
 }
 
+auth:bearer {
+  token: {{jwt}}
+}
+
 body:json {
   {
-    "key": "welcome",
-    "displayName": "Boas-vindas",
-    "subject": "Bem-vindo, {{name}}",
-    "htmlBody": "<p>Olá {{name}}</p>",
-    "textBody": "Olá {{name}}"
+    "key": "client-credentials-secret",
+    "displayName": "Secrets",
+    "subject": "client-credentials-secret {{tenantName}}",
+    "htmlBody": "<p>Segue secrets: {{clientSecret}}</p>",
+    "textBody": ""
   }
 }
 
 docs {
-  **POST** `/api/email-templates` — requer role `template-write` ou scope `email-admin`.
-
+  **POST** `/api/email-templates` — **TenantAdmin**.
+  
   `key` é única por tenant. Corpo HTML/texto pode usar placeholders alinhados com `parameters` em **Send Email**.
 }

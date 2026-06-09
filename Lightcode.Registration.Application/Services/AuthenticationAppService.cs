@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application.Accounts;
 using Lightcode.Registration.Application.Common;
@@ -83,7 +84,13 @@ public sealed class AuthenticationAppService(
         }
 
         var credentials = outcome.Success!;
-        var profile = TokenIssuanceProfile.ForPasswordGrant(jwtOptions.Value, tenantId, credentials.Roles);
+        var profile = TokenIssuanceProfile.ForPasswordGrant(
+            jwtOptions.Value,
+            tenantId,
+            credentials.Roles,
+            credentials.UserId,
+            credentials.Email,
+            credentials.Username);
         return await IssueTokensAsync(tenantId, profile, credentials.UserId, TokenSubjectTypes.User, cancellationToken);
     }
 
@@ -153,7 +160,28 @@ public sealed class AuthenticationAppService(
             return client is null ? null : TokenIssuanceProfile.FromOAuthClient(client);
         }
 
-        return TokenIssuanceProfile.ForPasswordGrant(jwtOptions.Value, tenantId, stored.Roles);
+        var identity = await TryResolveUserIdentityAsync(tenantId, stored.SubjectId, cancellationToken);
+        return TokenIssuanceProfile.ForPasswordGrant(
+            jwtOptions.Value,
+            tenantId,
+            stored.Roles,
+            stored.SubjectId,
+            identity?.Email,
+            identity?.Username);
+    }
+
+    private async Task<(string Email, string Username)?> TryResolveUserIdentityAsync(
+        string tenantId,
+        string userId,
+        CancellationToken cancellationToken)
+    {
+        var json = await userAccountWriter.GetUserDocumentJsonAsync(tenantId, userId, cancellationToken);
+        if (json is null || JsonNode.Parse(json) is not JsonObject obj)
+            return null;
+
+        var email = obj["email"] is JsonValue e && e.TryGetValue<string>(out var ev) ? ev : string.Empty;
+        var username = obj["username"] is JsonValue u && u.TryGetValue<string>(out var uv) ? uv : string.Empty;
+        return (email, username);
     }
 
     private async Task<ServiceResult<IssueTokenResponse>> IssueTokensAsync(

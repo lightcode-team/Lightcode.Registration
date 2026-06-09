@@ -15,6 +15,10 @@ headers {
   Authorization: Bearer {{jwt}}
 }
 
+auth:bearer {
+  token: {{jwt}}
+}
+
 body:json {
   {
     "displayName": "FinAi Integration",
@@ -26,7 +30,9 @@ body:json {
         { "type": "iss", "value": "FinAi" },
         { "type": "aud", "value": "FinAi.Api" },
         { "type": "scope", "value": "admin" },
+         { "type": "scope", "value": "owner" },
         { "type": "role", "value": "send-email" },
+         { "type": "role", "value": "EmailTemplateRead" },
         { "type": "role", "value": "clients-read" }
       ]
     }
