@@ -39,11 +39,12 @@ public sealed class AccountAdminAppService(
         if (schemaEntity is null)
             return ServiceResult<RegisterAccountResult>.Fail(400, "Não existe schema default de conta. Configure um em /api/account-json-schemas.");
 
+        var config = schemaEntity.GetConfig();
         var email = request.Email.Trim().ToLowerInvariant();
         var username = request.Username.Trim().ToLowerInvariant();
         var roles = UserRoles.NormalizeAccountRoles(request.Roles);
 
-        if (await userAccountWriter.EmailExistsAsync(tenant.Id, email, cancellationToken))
+        if (config.ValidateDuplicateEmail && await userAccountWriter.EmailExistsAsync(tenant.Id, email, cancellationToken))
             return ServiceResult<RegisterAccountResult>.Fail(409, "Já existe uma conta com este email.");
 
         if (await userAccountWriter.UsernameExistsAsync(tenant.Id, username, cancellationToken))
@@ -59,7 +60,7 @@ public sealed class AccountAdminAppService(
             ["status"] = JsonValue.Create(AccountStatuses.Active)
         };
 
-        if (AccountSchemaConfigParser.TryGetRegistrationExpiry(schemaEntity.ConfigJson, out var daysExpiry))
+        if (AccountSchemaConfigParser.TryGetRegistrationExpiry(config, out var daysExpiry))
             obj["registrationExpiresAtUtc"] = JsonValue.Create(DateTime.UtcNow.AddDays(daysExpiry));
 
         var toSave = obj.ToJsonString();

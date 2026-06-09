@@ -60,7 +60,9 @@ public sealed class AccountRegistrationAppService(
         email = email.Trim().ToLowerInvariant();
         username = username.Trim().ToLowerInvariant();
 
-        if (await userAccountWriter.EmailExistsAsync(tenant.Id, email, cancellationToken))
+        var config = schemaEntity.GetConfig();
+        if (config.ValidateDuplicateEmail
+            && await userAccountWriter.EmailExistsAsync(tenant.Id, email, cancellationToken))
             return ServiceResult<RegisterAccountResult>.Fail(409, "Já existe uma conta com este email.");
 
         if (await userAccountWriter.UsernameExistsAsync(tenant.Id, username, cancellationToken))
@@ -76,7 +78,7 @@ public sealed class AccountRegistrationAppService(
         obj["createdAtUtc"] = JsonValue.Create(DateTime.UtcNow);
         obj["status"] = JsonValue.Create(AccountStatuses.Active);
 
-        if (AccountSchemaConfigParser.TryGetRegistrationExpiry(schemaEntity.ConfigJson, out var daysExpiry))
+        if (AccountSchemaConfigParser.TryGetRegistrationExpiry(config, out var daysExpiry))
         {
             var expires = DateTime.UtcNow.AddDays(daysExpiry);
             obj["registrationExpiresAtUtc"] = JsonValue.Create(expires);

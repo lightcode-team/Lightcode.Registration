@@ -10,20 +10,21 @@ post {
   auth: bearer
 }
 
-auth:bearer {
-  token: {{jwt}}
-}
-
 headers {
   Content-Type: application/json
 }
 
+auth:bearer {
+  token: {{jwt}}
+}
+
 body:json {
   {
-    "email": "user@example.com",
-    "username": "newuser",
+    "email": "pigajip6428@raxel.me",
+    "username": "fred aquino",
     "password": "ChangeThis!12345678",
-    "roles": ["user", "template-read"]
+    "roles": ["user", "template-read"],
+    "scope": ["email"]
   }
 }
 

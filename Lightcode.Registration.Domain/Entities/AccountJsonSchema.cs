@@ -18,6 +18,9 @@ public class AccountJsonSchema
     /// <summary>Configuração opcional (ex.: expiração de cadastro) como JSON; no MongoDB é documento embutido.</summary>
     public string? ConfigJson { get; set; }
 
+    /// <summary>Materializa <see cref="ConfigJson"/> como objeto tipado.</summary>
+    public AccountJsonSchemaConfig GetConfig() => AccountJsonSchemaConfig.Parse(ConfigJson);
+
     public bool IsDefault { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }
