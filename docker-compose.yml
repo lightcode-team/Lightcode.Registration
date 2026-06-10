@@ -5,8 +5,6 @@ services:
     volumes:
       - mongo_data:/data/db
     # Remova a linha ports em produção se o Mongo só for acessível pela rede interna do compose
-    ports:
-      - "27017:27017"
     environment:
       MONGO_INITDB_DATABASE: LightcodeRegistration
     healthcheck:
