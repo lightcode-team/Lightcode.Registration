@@ -1,3 +1,4 @@
+using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.AspNetCore.Hosting;
 
 RegistrationHostEnvironment.LoadDotEnvIfPresent();

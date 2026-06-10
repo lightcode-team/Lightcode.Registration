@@ -10,6 +10,8 @@ using RabbitMQ.Client;
 using RabbitMQ.Client.Exceptions;
 using System.Net.Sockets;
 
+RegistrationHostEnvironment.LoadDotEnvIfPresent();
+
 static bool IsTransientRabbitFailure(Exception ex)
 {
     if (ex is AggregateException agg)

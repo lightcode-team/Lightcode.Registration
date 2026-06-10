@@ -7,4 +7,5 @@
 **/.dockerignore
 **/Dockerfile*
 **/docker-compose*.yml
+**/.env
 **/.cursor

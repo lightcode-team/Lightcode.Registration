@@ -360,10 +360,10 @@ MigrationBackup/
 .ionide/
 
 # Variáveis locais (use .env.example como modelo)
-# .env
-# **/.env
-# !.env.example
-# !**/.env.example
+.env
+**/.env
+!.env.example
+!**/.env.example
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
