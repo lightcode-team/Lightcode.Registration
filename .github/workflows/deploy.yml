@@ -14,8 +14,19 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    env:
+      DEPLOY_SCRIPT: |
+        set -e
+        cd /root/lightcode-git
+        git config --global --add safe.directory /root/lightcode-git
+        git fetch --all --prune
+        git checkout master
+        git pull --ff-only origin master
+        docker compose up -d --build
+        docker compose ps
+
     steps:
-      - name: Deploy on VPS via SSH
+      - name: Deploy on VPS via SSH (attempt 1)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -24,12 +35,28 @@ jobs:
           timeout: 120s
           command_timeout: 20m
           script_stop: true
-          script: |
-            set -e
-            cd /root/lightcode-git
-            git config --global --add safe.directory /root/lightcode-git
-            git fetch --all --prune
-            git checkout master
-            git pull --ff-only origin master
-            docker compose up -d --build
-            docker compose ps
+          script: ${{ env.DEPLOY_SCRIPT }}
+
+      - name: Deploy on VPS via SSH (attempt 2)
+        if: failure()
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 120s
+          command_timeout: 20m
+          script_stop: true
+          script: ${{ env.DEPLOY_SCRIPT }}
+
+      - name: Deploy on VPS via SSH (attempt 3)
+        if: failure()
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          timeout: 120s
+          command_timeout: 20m
+          script_stop: true
+          script: ${{ env.DEPLOY_SCRIPT }}
