@@ -34,7 +34,7 @@ docs {
   
   **POST** `/api/tenants/{tenantId}/accounts`
   
-  Não requer autenticação. O corpo é validado contra o **JSON Schema default** do tenant.
+  Não requer autenticação. Validação **parcial** do JSON Schema (campos `required` não são exigidos nesta etapa).
   
   ## Variável
   - `tenantId` — id devolvido ao criar o tenant (mesmo valor usado no token)
@@ -43,7 +43,8 @@ docs {
   - Password é persistida como hash (PBKDF2)
   - Email normalizado (minúsculas)
   - `409` se email já existir na coleção `Users` do tenant
-  - Com `config.2FA.Active = true`: conta fica `PendingConfirmation` e email de confirmação é enfileirado
+  - Conta criada com `status: Incomplete`; use `POST /api/accounts/{userId}/complete-register` para concluir
+  - 2FA (se ativo) é aplicado na conclusão do registo, não nesta etapa
   
   ## Resposta (Data)
   - `id` — identificador da conta

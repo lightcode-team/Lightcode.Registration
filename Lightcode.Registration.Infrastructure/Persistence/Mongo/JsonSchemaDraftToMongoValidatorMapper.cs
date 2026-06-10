@@ -36,8 +36,7 @@ public sealed class JsonSchemaDraftToMongoValidatorMapper : IJsonSchemaToMongoVa
             ["bsonType"] = "object"
         };
 
-        if (el.TryGetProperty("required", out var req) && req.ValueKind == JsonValueKind.Array)
-            result["required"] = req.EnumerateArray().Select(x => x.GetString()).Where(s => !string.IsNullOrEmpty(s)).ToList();
+        // required é validado na aplicação (complete-register); o Mongo aceita documentos parciais.
 
         if (el.TryGetProperty("additionalProperties", out var add))
             result["additionalProperties"] = add.ValueKind == JsonValueKind.True || add.ValueKind == JsonValueKind.False

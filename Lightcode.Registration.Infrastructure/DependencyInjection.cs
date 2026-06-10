@@ -49,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountRegistrationAppService, AccountRegistrationAppService>();
         services.AddScoped<IAccountAdminAppService, AccountAdminAppService>();
         services.AddScoped<IAccountUpdateAppService, AccountUpdateAppService>();
+        services.AddScoped<IAccountCompleteRegistrationAppService, AccountCompleteRegistrationAppService>();
         services.AddScoped<IAccountEmailConfirmationAppService, AccountEmailConfirmationAppService>();
         services.AddScoped<IAccountPasswordResetAppService, AccountPasswordResetAppService>();
 

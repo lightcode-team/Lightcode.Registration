@@ -13,8 +13,7 @@ public sealed class AccountRegistrationAppService(
     IAccountJsonSchemaRepository schemaRepository,
     IJsonSchemaValidationService jsonSchemaValidation,
     IUserAccountWriter userAccountWriter,
-    IPasswordHasher passwordHasher,
-    AccountRegistrationTwoFactorSupport twoFactorSupport) : IAccountRegistrationAppService
+    IPasswordHasher passwordHasher) : IAccountRegistrationAppService
 {
     public async Task<ServiceResult<RegisterAccountResult>> RegisterAsync(
         string tenantId,
@@ -54,18 +53,15 @@ public sealed class AccountRegistrationAppService(
 
         var schemaEntity = schemaResult.Value!;
 
-        string? confirmationReturnUrl = null;
-        if (obj["confirmationReturnUrl"] is JsonValue returnUrlNode
-            && returnUrlNode.TryGetValue<string>(out var returnUrl)
-            && !string.IsNullOrWhiteSpace(returnUrl))
-            confirmationReturnUrl = returnUrl.Trim();
-
         obj.Remove("confirmationReturnUrl");
         obj.Remove("role");
         obj.Remove("roles");
 
         var cleanedJson = obj.ToJsonString();
-        var errors = jsonSchemaValidation.Validate(schemaEntity.SchemaJson, cleanedJson);
+        var errors = jsonSchemaValidation.Validate(
+            schemaEntity.SchemaJson,
+            cleanedJson,
+            JsonSchemaValidationMode.Partial);
         if (errors.Count > 0)
             return ServiceResult<RegisterAccountResult>.Fail(400, errors.ToArray());
 
@@ -96,32 +92,14 @@ public sealed class AccountRegistrationAppService(
         obj["roles"] = new JsonArray(JsonValue.Create(UserRoles.User));
         obj["createdAtUtc"] = JsonValue.Create(DateTime.UtcNow);
 
-        if (AccountSchemaConfigParser.TryGetRegistrationExpiry(config, out var daysExpiry))
-            obj["registrationExpiresAtUtc"] = JsonValue.Create(DateTime.UtcNow.AddDays(daysExpiry));
-
-        var twoFactorResult = await twoFactorSupport.ApplyAsync(
-            obj,
-            config,
-            tenant.Id,
-            email,
-            username,
-            confirmationReturnUrl,
-            cancellationToken);
+        obj["status"] = JsonValue.Create(AccountStatuses.Incomplete);
 
         var toSave = obj.ToJsonString();
         var userId = await userAccountWriter.InsertAsync(tenant.Id, toSave, cancellationToken);
 
-        var message = twoFactorResult.RequiresEmailConfirmation
-            ? "Conta criada. Confirme o email para ativar."
-            : "Conta criada com sucesso.";
-
         return ServiceResult<RegisterAccountResult>.Ok(
-            new RegisterAccountResult(
-                userId,
-                schemaId,
-                twoFactorResult.RequiresEmailConfirmation,
-                twoFactorResult.ConfirmationUrl),
+            new RegisterAccountResult(userId, schemaId),
             201,
-            message);
+            "Conta criada. Complete o registo para ativar.");
     }
 }

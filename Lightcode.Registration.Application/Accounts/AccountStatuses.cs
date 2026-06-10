@@ -8,4 +8,7 @@ public static class AccountStatuses
     public const string Expired = "Expired";
 
     public const string PendingConfirmation = "PendingConfirmation";
+
+    /// <summary>Cadastro iniciado mas ainda não concluído (campos obrigatórios do schema em falta).</summary>
+    public const string Incomplete = "Incomplete";
 }
