@@ -1,7 +1,5 @@
 name: Deploy VPS
 
-# Minimal workflow touch to validate automatic deploy on push to master.
-
 on:
   push:
     branches:
