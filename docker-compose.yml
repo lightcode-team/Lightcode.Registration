@@ -7,8 +7,6 @@ services:
     # Remova a linha ports em produção se o Mongo só for acessível pela rede interna do compose
     environment:
       MONGO_INITDB_DATABASE: LightcodeRegistration
-    ports:
-      - "27017:27017"
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
       interval: 10s
@@ -22,9 +20,6 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 15s
