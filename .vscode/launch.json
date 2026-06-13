@@ -1,0 +1,65 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Lightcode.Registration",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: Lightcode.Registration",
+            "program": "${workspaceFolder}/Lightcode.Registration/bin/Debug/net10.0/Lightcode.Registration.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Lightcode.Registration",
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "DOTNET_ENVIRONMENT": "Development"
+            }
+        },
+        {
+            "name": "Debug Lightcode.Registration.EmailApi",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: Lightcode.Registration.EmailApi",
+            "program": "${workspaceFolder}/Lightcode.Registration.EmailApi/bin/Debug/net10.0/Lightcode.Registration.EmailApi.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Lightcode.Registration.EmailApi",
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development",
+                "DOTNET_ENVIRONMENT": "Development"
+            }
+        },
+        {
+            "name": "Debug Lightcode.Registration.Worker",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: Lightcode.Registration.Worker",
+            "program": "${workspaceFolder}/Lightcode.Registration.Worker/bin/Debug/net10.0/Lightcode.Registration.Worker.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/Lightcode.Registration.Worker",
+            "stopAtEntry": false,
+            "env": {
+                "DOTNET_ENVIRONMENT": "Development"
+            }
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Debug APIs + Worker",
+            "configurations": [
+                "Debug Lightcode.Registration",
+                "Debug Lightcode.Registration.EmailApi",
+                "Debug Lightcode.Registration.Worker"
+            ],
+            "stopAll": true
+        }
+    ]
+}
