@@ -8,6 +8,9 @@ public static class RegistrationHostEnvironment
 {
     public static void LoadDotEnvIfPresent(string? envFilePath = null)
     {
+        if (IsDevelopment())
+            return;
+
         var path = ResolveEnvFilePath(envFilePath);
         if (path is null || !File.Exists(path))
             return;
@@ -53,6 +56,15 @@ public static class RegistrationHostEnvironment
         }
 
         return Path.Combine(Directory.GetCurrentDirectory(), ".env");
+    }
+
+    private static bool IsDevelopment()
+    {
+        var aspNetCoreEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        var dotnetEnvironment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
+
+        return string.Equals(aspNetCoreEnvironment, "Development", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(dotnetEnvironment, "Development", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool LooksLikeRepoRoot(DirectoryInfo directory) =>

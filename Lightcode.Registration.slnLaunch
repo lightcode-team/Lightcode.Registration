@@ -1,0 +1,19 @@
+[
+  {
+    "Name": "Registration + EmailApi + Worker",
+    "Projects": [
+      {
+        "Path": "Lightcode.Registration\\Lightcode.Registration.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Lightcode.Registration.EmailApi\\Lightcode.Registration.EmailApi.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "Lightcode.Registration.Worker\\Lightcode.Registration.Worker.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
