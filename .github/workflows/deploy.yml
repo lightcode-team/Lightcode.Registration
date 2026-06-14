@@ -22,6 +22,7 @@ jobs:
         git fetch --all --prune
         git checkout master
         git pull --ff-only origin master
+        export REGISTRATION_ENV_FILE=./.env.production
         docker compose up -d --build
         docker compose ps
 
