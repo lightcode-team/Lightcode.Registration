@@ -2,50 +2,58 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug Lightcode.Registration",
+            "name": ".NET: Registration API",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build: Lightcode.Registration",
             "program": "${workspaceFolder}/Lightcode.Registration/bin/Debug/net10.0/Lightcode.Registration.dll",
             "args": [],
             "cwd": "${workspaceFolder}/Lightcode.Registration",
+            "console": "integratedTerminal",
             "stopAtEntry": false,
+            "justMyCode": true,
             "serverReadyAction": {
                 "action": "openExternally",
                 "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
             },
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
-                "DOTNET_ENVIRONMENT": "Development"
+                "DOTNET_ENVIRONMENT": "Development",
+                "ASPNETCORE_URLS": "https://localhost:7035;http://localhost:5012"
             }
         },
         {
-            "name": "Debug Lightcode.Registration.EmailApi",
+            "name": ".NET: Email API",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build: Lightcode.Registration.EmailApi",
             "program": "${workspaceFolder}/Lightcode.Registration.EmailApi/bin/Debug/net10.0/Lightcode.Registration.EmailApi.dll",
             "args": [],
             "cwd": "${workspaceFolder}/Lightcode.Registration.EmailApi",
+            "console": "integratedTerminal",
             "stopAtEntry": false,
+            "justMyCode": true,
             "serverReadyAction": {
                 "action": "openExternally",
                 "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
             },
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development",
-                "DOTNET_ENVIRONMENT": "Development"
+                "DOTNET_ENVIRONMENT": "Development",
+                "ASPNETCORE_URLS": "https://localhost:7036;http://localhost:5013"
             }
         },
         {
-            "name": "Debug Lightcode.Registration.Worker",
+            "name": ".NET: Worker",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build: Lightcode.Registration.Worker",
             "program": "${workspaceFolder}/Lightcode.Registration.Worker/bin/Debug/net10.0/Lightcode.Registration.Worker.dll",
             "args": [],
             "cwd": "${workspaceFolder}/Lightcode.Registration.Worker",
+            "console": "integratedTerminal",
             "stopAtEntry": false,
+            "justMyCode": true,
             "env": {
                 "DOTNET_ENVIRONMENT": "Development"
             }
@@ -53,11 +61,11 @@
     ],
     "compounds": [
         {
-            "name": "Debug APIs + Worker",
+            "name": ".NET: Registration + Email API + Worker",
             "configurations": [
-                "Debug Lightcode.Registration",
-                "Debug Lightcode.Registration.EmailApi",
-                "Debug Lightcode.Registration.Worker"
+                ".NET: Registration API",
+                ".NET: Email API",
+                ".NET: Worker"
             ],
             "stopAll": true
         }

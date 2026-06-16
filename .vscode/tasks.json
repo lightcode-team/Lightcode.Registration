@@ -2,13 +2,25 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
-            "command": "dotnet",
+            "label": "restore",
             "type": "process",
+            "command": "dotnet",
             "args": [
-                "build",
+                "restore",
                 "${workspaceFolder}/Lightcode.Registration.slnx"
             ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/Lightcode.Registration.slnx",
+                "--no-restore"
+            ],
+            "dependsOn": "restore",
             "problemMatcher": "$msCompile",
             "group": {
                 "kind": "build",
@@ -16,9 +28,32 @@
             }
         },
         {
-            "label": "build: Lightcode.Registration",
-            "command": "dotnet",
+            "label": "rebuild",
             "type": "process",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/Lightcode.Registration.slnx",
+                "--no-incremental"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": "build"
+        },
+        {
+            "label": "clean",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "clean",
+                "${workspaceFolder}/Lightcode.Registration.slnx"
+            ],
+            "problemMatcher": "$msCompile",
+            "group": "build"
+        },
+        {
+            "label": "build: Lightcode.Registration",
+            "type": "process",
+            "command": "dotnet",
             "args": [
                 "build",
                 "${workspaceFolder}/Lightcode.Registration/Lightcode.Registration.csproj"
@@ -28,8 +63,8 @@
         },
         {
             "label": "build: Lightcode.Registration.EmailApi",
-            "command": "dotnet",
             "type": "process",
+            "command": "dotnet",
             "args": [
                 "build",
                 "${workspaceFolder}/Lightcode.Registration.EmailApi/Lightcode.Registration.EmailApi.csproj"
@@ -39,14 +74,80 @@
         },
         {
             "label": "build: Lightcode.Registration.Worker",
-            "command": "dotnet",
             "type": "process",
+            "command": "dotnet",
             "args": [
                 "build",
                 "${workspaceFolder}/Lightcode.Registration.Worker/Lightcode.Registration.Worker.csproj"
             ],
             "problemMatcher": "$msCompile",
             "group": "build"
+        },
+        {
+            "label": "docker: compose build",
+            "type": "process",
+            "command": "docker",
+            "args": [
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "build"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "docker: compose up",
+            "type": "process",
+            "command": "docker",
+            "args": [
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "up",
+                "-d"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "docker: infra up",
+            "type": "process",
+            "command": "docker",
+            "args": [
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "up",
+                "-d",
+                "mongo",
+                "rabbitmq"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "docker: compose down",
+            "type": "process",
+            "command": "docker",
+            "args": [
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "down"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "docker: compose logs",
+            "type": "process",
+            "command": "docker",
+            "args": [
+                "compose",
+                "-f",
+                "${workspaceFolder}/docker-compose.yml",
+                "logs",
+                "-f"
+            ],
+            "problemMatcher": [],
+            "isBackground": true
         }
     ]
 }
