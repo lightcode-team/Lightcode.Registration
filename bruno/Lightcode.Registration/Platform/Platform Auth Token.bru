@@ -1,0 +1,37 @@
+meta {
+  name: Platform Auth Token
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/platform-auth/token
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "email": "{{platformAdminEmail}}",
+    "password": "{{platformPassword}}"
+  }
+}
+
+docs {
+  # Platform Auth Token
+  
+  **POST** `/api/platform-auth/token`
+  
+  Faz login do ADM central no painel multi-tenant.
+  
+  ## Resposta (Data)
+  - `access_token` - copie para `platformJwt`.
+  - `token_type`
+  - `expires_in`
+  
+  Esse token central serve apenas para rotas `/api/platform/*`.
+}

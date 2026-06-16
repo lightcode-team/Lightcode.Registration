@@ -27,7 +27,7 @@ public sealed class JwtTenantTokenValidator(
         var tenantId = principal.FindFirst("tenantId")?.Value;
         if (string.IsNullOrWhiteSpace(tenantId))
         {
-            context.Fail("Token sem claim tenantId.");
+            ValidatePlatformAdminToken(context);
             return;
         }
 
@@ -68,6 +68,36 @@ public sealed class JwtTenantTokenValidator(
         {
             context.Fail("Audience do token inválida.");
             return;
+        }
+    }
+
+    private void ValidatePlatformAdminToken(TokenValidatedContext context)
+    {
+        var principal = context.Principal;
+        var tokenUse = principal?.FindFirst("token_use")?.Value;
+        var adminId = principal?.FindFirst("platformAdminId")?.Value;
+
+        if (!string.Equals(tokenUse, "platform_admin", StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(adminId))
+        {
+            context.Fail("Token sem claim tenantId.");
+            return;
+        }
+
+        var jwt = jwtOptions.Value;
+        var tokenIssuer = JwtClaimReader.GetIssuer(principal!);
+        if (string.IsNullOrWhiteSpace(tokenIssuer)
+            || !string.Equals(tokenIssuer, jwt.Issuer, StringComparison.Ordinal))
+        {
+            context.Fail("Issuer do token invÃ¡lido.");
+            return;
+        }
+
+        var tokenAudiences = JwtClaimReader.GetAudiences(principal!);
+        if (string.IsNullOrWhiteSpace(jwt.Audience)
+            || !tokenAudiences.Contains(jwt.Audience, StringComparer.Ordinal))
+        {
+            context.Fail("Audience do token invÃ¡lida.");
         }
     }
 }

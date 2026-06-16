@@ -72,6 +72,27 @@ public sealed class TokenIssuanceProfile
         };
     }
 
+    public static TokenIssuanceProfile ForPlatformAdminTenant(
+        JwtOptions jwt,
+        string tenantId,
+        string adminId,
+        string email)
+    {
+        return new TokenIssuanceProfile
+        {
+            Issuer = $"{jwt.Issuer}/{tenantId}",
+            Audience = $"{jwt.Audience}/{tenantId}",
+            AccessTokenExpirationMinutes = jwt.ExpirationMinutes,
+            RefreshTokenExpirationDays = jwt.RefreshTokenExpirationDays,
+            MaxRefreshTokenUses = jwt.MaxRefreshTokenUses,
+            Roles = [UserRoles.Admin],
+            Scopes = [OAuthClientsScopes.Owner],
+            UserId = adminId,
+            Email = email,
+            Username = email
+        };
+    }
+
     private static string ResolveSingle(OAuthClientTokenConfiguration config, string type) =>
         config.Values
             .FirstOrDefault(v => string.Equals(v.Type, type, StringComparison.OrdinalIgnoreCase))

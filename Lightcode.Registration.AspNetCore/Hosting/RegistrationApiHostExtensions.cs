@@ -118,6 +118,13 @@ public static class RegistrationApiHostExtensions
                 p.RequireClaim("tenantId");
             });
 
+            o.AddPolicy(PlatformPolicyNames.PlatformAdmin, p =>
+            {
+                p.RequireAuthenticatedUser();
+                p.RequireClaim("token_use", "platform_admin");
+                p.RequireClaim("platformAdminId");
+            });
+
             o.AddPolicy("TenantAdmin", p =>
             {
                 p.RequireAuthenticatedUser();

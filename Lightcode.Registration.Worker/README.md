@@ -14,7 +14,7 @@ Não expõe HTTP — corre como `Worker Service` (.NET Generic Host).
 docker compose up -d mongo rabbitmq
 ```
 
-Para envio real de email, configure SMTP (`Smtp:UseSmtp: true`) ou use o SMTP por tenant em `tenant_{id}.Settings`.
+Para envio real de email, configure `Smtp:UseSmtp: true`. As credenciais usadas no envio ficam por tenant em `tenant_{id}.Settings` (`_id=smtp`); `TenantDefaultSmtp:*` apenas semeia esse documento na criacao de novos tenants.
 
 ## Executar
 
@@ -45,7 +45,7 @@ Fluxo:
 1. Mensagem `EmailDispatchQueueMessage` (JSON) na fila RabbitMQ
 2. Worker carrega template por `templateKey` ou `templateId` em `tenant_{id}.EmailTemplates`
 3. Merge de placeholders `{{chave}}`
-4. SMTP do tenant (`Settings`) ou remetente configurado globalmente
+4. SMTP do tenant (`Settings`, `_id=smtp`)
 
 Com `Smtp:UseSmtp: false` (default em dev), os emails são apenas registados em log (`LoggingOutboundMailSender`).
 
@@ -62,7 +62,7 @@ O scan usa o schema default (`AccountJsonSchemas`) de cada tenant para ler regra
 | `Jwt:SigningKey` | Usado internamente onde necessário |
 | `RabbitMQ:HostName` | Host RabbitMQ (`localhost` ou `rabbitmq` no Docker) |
 | `RabbitMQ:ScanIntervalMinutes` | Intervalo do scan de expiração (default: 360) |
-| `Smtp:UseSmtp` | `true` = envio SMTP real; `false` = apenas log |
+| `Smtp:UseSmtp` | `true` = envio SMTP real usando `tenant_{id}.Settings`; `false` = apenas log |
 
 Exemplo Docker / produção:
 
@@ -70,9 +70,16 @@ Exemplo Docker / produção:
 Mongo__ConnectionString=mongodb://mongo:27017
 RabbitMQ__HostName=rabbitmq
 Smtp__UseSmtp=true
-Smtp__Host=smtp.example.com
-Smtp__Port=587
+TenantDefaultSmtp__Host=smtp.gmail.com
+TenantDefaultSmtp__Port=587
+TenantDefaultSmtp__Usuario=contato@example.com
+TenantDefaultSmtp__Senha=app-password-do-provedor
+TenantDefaultSmtp__EmailRemetente=contato@example.com
+TenantDefaultSmtp__NomeRemetente=Lightcode
+TenantDefaultSmtp__UsarSsl=true
 ```
+
+Para Gmail, use uma **App Password** da conta Google. A senha normal da conta costuma falhar com `5.7.0 Authentication Required`, mesmo com usuario e remetente corretos.
 
 ## Dependências da stack completa
 

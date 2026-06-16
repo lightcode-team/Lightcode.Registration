@@ -57,4 +57,31 @@ public sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> jwtOptions) : IAcc
         var accessToken = handler.WriteToken(token);
         return new IssueTokenResponse(accessToken, "Bearer", expiresMinutes * 60);
     }
+
+    public IssueTokenResponse CreatePlatformAdminAccessToken(string adminId, string email)
+    {
+        var jwt = jwtOptions.Value;
+        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey));
+        var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
+
+        var claims = new List<Claim>
+        {
+            new(JwtRegisteredClaimNames.Sub, adminId),
+            new(JwtRegisteredClaimNames.Email, email),
+            new("platformAdminId", adminId),
+            new("token_use", "platform_admin")
+        };
+
+        var expiresMinutes = jwt.ExpirationMinutes > 0 ? jwt.ExpirationMinutes : 60;
+        var token = new JwtSecurityToken(
+            issuer: jwt.Issuer,
+            audience: jwt.Audience,
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(expiresMinutes),
+            signingCredentials: creds);
+
+        var handler = new JwtSecurityTokenHandler();
+        var accessToken = handler.WriteToken(token);
+        return new IssueTokenResponse(accessToken, "Bearer", expiresMinutes * 60);
+    }
 }

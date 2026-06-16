@@ -1,0 +1,38 @@
+meta {
+  name: Issue Tenant Token
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/platform/tenants/{{tenantId}}/token
+  body: none
+  auth: bearer
+}
+
+headers {
+  Authorization: Bearer {{platformJwt}}
+}
+
+auth:bearer {
+  token: {{platformJwt}}
+}
+
+docs {
+  # Issue Tenant Token
+  
+  **POST** `/api/platform/tenants/{tenantId}/token`
+  
+  Emite um JWT tenant-scoped para o ADM central operar os endpoints atuais do tenant.
+  
+  ## Auth
+  - Bearer `platformJwt`.
+  
+  ## Resposta (Data)
+  - `tenant_id`
+  - `token.access_token` - copie para `jwt` ou `platformTenantJwt`.
+  - `token.token_type`
+  - `token.expires_in`
+  
+  Use o `access_token` retornado em `/api/accounts`, `/api/account-json-schemas` e `/api/oauth-clients`.
+}

@@ -14,6 +14,7 @@ docs {
   3. **Issue Token** — admin de bootstrap (Development) ou outro utilizador; header `X-Tenant-Id`; copiar `access_token` para `jwt`.
   4. **Update Account (JWT)** — `PUT /api/accounts/{userId}` com Bearer.
   5. **Account JSON Schemas** — criar/alterar/apagar com JWT **admin**; listar/ver com qualquer utilizador do tenant.
+  6. **Platform** — convidar/ativar ADM central, listar tenants e emitir JWT tenant-scoped para operar multiplos tenants com um unico email.
 
   ## Envelope de resposta
   Campos comuns: `Error`, `Errors`, `StatusCode`, `Data`. Opcional: `Message`.

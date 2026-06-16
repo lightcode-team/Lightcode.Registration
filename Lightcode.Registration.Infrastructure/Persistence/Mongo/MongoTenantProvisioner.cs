@@ -12,6 +12,7 @@ namespace Lightcode.Registration.Infrastructure.Persistence.Mongo;
 public sealed class MongoTenantProvisioner : ITenantProvisioner
 {
     private const string ClientCredentialsTemplateKey = "client-credentials-secret";
+    private const string PlatformAdminInviteTemplateKey = "platform-admin-invite";
 
     private readonly IMongoClient _mongoClient;
     private readonly IMongoCollection<Tenant> _tenants;
@@ -94,6 +95,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
             await _usersSchemaApplier.ApplyAsync(tenant.Id, mongoInner, cancellationToken);
 
         await SeedClientCredentialsEmailTemplateAsync(tenant, now, cancellationToken);
+        await SeedPlatformAdminInviteEmailTemplateAsync(tenant, now, cancellationToken);
         await SeedEmailConfirmationTemplatesAsync(tenant, now, cancellationToken);
         await SeedPasswordResetEmailTemplateAsync(tenant, now, cancellationToken);
 
@@ -173,6 +175,42 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
                 Client Secret: {{clientSecret}}
 
                 Guarde o segredo em local seguro; não será reenviado.
+                """,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        await _emailTemplates.InsertAsync(template, cancellationToken);
+    }
+
+    private async Task SeedPlatformAdminInviteEmailTemplateAsync(
+        Tenant tenant,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var template = new EmailTemplate
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            TenantId = tenant.Id,
+            Key = PlatformAdminInviteTemplateKey,
+            DisplayName = "Convite ADM central",
+            Subject = "Convite de administração — {{tenantName}}",
+            HtmlBody = """
+                <p>Olá,</p>
+                <p>Você recebeu acesso administrativo ao painel central.</p>
+                <p>Ative o seu acesso pelo link abaixo:</p>
+                <p><a href="{{activationUrl}}">{{activationUrl}}</a></p>
+                <p>Se o link não abrir, use este token: <code>{{activationToken}}</code></p>
+                <p>O convite expira em {{expiresAtUtc}}.</p>
+                """,
+            TextBody = """
+                Você recebeu acesso administrativo ao painel central.
+
+                Ative o seu acesso:
+                {{activationUrl}}
+
+                Token: {{activationToken}}
+                Expira em: {{expiresAtUtc}}
                 """,
             CreatedAtUtc = now,
             UpdatedAtUtc = now

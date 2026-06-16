@@ -2,7 +2,6 @@ using System.Net.Mail;
 using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application.Common;
 using Lightcode.Registration.Application.Configuration;
-using Lightcode.Registration.Application.Contracts.Email;
 using Lightcode.Registration.Application.Contracts.Tenants;
 using Microsoft.Extensions.Options;
 
@@ -10,12 +9,10 @@ namespace Lightcode.Registration.Application.Services;
 
 public sealed class TenantOnboardingAppService(
     ITenantProvisioner tenantProvisioner,
-    IEmailEnqueuePublisher emailEnqueuePublisher,
+    IPlatformAdminAppService platformAdminAppService,
     IOptions<MasterOptions> masterOptions,
     IRuntimeEnvironment runtimeEnvironment) : ITenantOnboardingAppService
 {
-    private const string ClientCredentialsTemplateKey = "client-credentials-secret";
-
     public async Task<ServiceResult<TenantCreatedDto>> CreateTenantAsync(
         CreateTenantCommand command,
         CancellationToken cancellationToken = default)
@@ -47,20 +44,12 @@ public sealed class TenantOnboardingAppService(
             new TenantProvisionRequest(command.Name.Trim(), adminEmail),
             cancellationToken);
 
-        await emailEnqueuePublisher.PublishSendAsync(
-            new EmailDispatchQueueMessage(
-                provision.Tenant.Id,
-                TemplateId: null,
-                TemplateKey: ClientCredentialsTemplateKey,
-                To: adminEmail,
-                Parameters: new Dictionary<string, string>(StringComparer.Ordinal)
-                {
-                    ["tenantName"] = provision.Tenant.Name,
-                    ["tenantId"] = provision.Tenant.Id,
-                    ["clientId"] = provision.OAuthClientId,
-                    ["clientSecret"] = provision.OAuthClientSecretPlaintext
-                }),
+        var platformAdmin = await platformAdminAppService.EnsureTenantOwnerAsync(
+            adminEmail,
+            provision.Tenant.Id,
             cancellationToken);
+        if (!platformAdmin.IsSuccess)
+            return ServiceResult<TenantCreatedDto>.Fail(platformAdmin.StatusCode, platformAdmin.Errors);
 
         return ServiceResult<TenantCreatedDto>.Ok(
             new TenantCreatedDto(

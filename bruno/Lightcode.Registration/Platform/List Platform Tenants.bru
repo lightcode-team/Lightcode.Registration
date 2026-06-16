@@ -1,0 +1,35 @@
+meta {
+  name: List Platform Tenants
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/platform/tenants
+  body: none
+  auth: bearer
+}
+
+headers {
+  Authorization: Bearer {{platformJwt}}
+}
+
+auth:bearer {
+  token: {{platformJwt}}
+}
+
+docs {
+  # List Platform Tenants
+  
+  **GET** `/api/platform/tenants`
+  
+  Lista os tenants vinculados ao ADM central autenticado.
+  
+  ## Auth
+  - Bearer `platformJwt`.
+  
+  ## Resposta (Data)
+  - `id`
+  - `name`
+  - `role`
+}

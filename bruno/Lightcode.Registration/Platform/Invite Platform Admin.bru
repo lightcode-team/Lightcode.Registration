@@ -1,0 +1,47 @@
+meta {
+  name: Invite Platform Admin
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/platform-admins/invite
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Provisioning-Key: {{provisioningKey}}
+}
+
+body:json {
+  {
+    "email": "{{platformAdminEmail}}",
+    "tenantIds": [
+      "{{tenantId}}"
+    ]
+  }
+}
+
+docs {
+  # Invite Platform Admin
+  
+  **POST** `/api/platform-admins/invite`
+  
+  Cria ou reutiliza um ADM central no banco master e vincula tenants informados.
+  
+  ## Headers
+  - `X-Provisioning-Key` - obrigatorio se `Master:ProvisioningApiKey` estiver configurado.
+  
+  ## Corpo
+  - `email` - email do ADM central.
+  - `tenantIds` - tenants que esse email podera controlar.
+  
+  ## Resposta (Data)
+  - `adminId`
+  - `email`
+  - `inviteToken` - copie para `platformInviteToken`.
+  - `activationUrl`
+  - `expiresAtUtc`
+}

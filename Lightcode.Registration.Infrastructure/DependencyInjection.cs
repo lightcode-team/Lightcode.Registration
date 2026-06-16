@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddSingleton<IRuntimeEnvironment, AspNetCoreRuntimeEnvironment>();
 
         services.AddScoped<ITenantLookup, MongoTenantLookup>();
+        services.AddScoped<IPlatformAdminRepository, MongoPlatformAdminRepository>();
         services.AddScoped<IAccountJsonSchemaRepository, MongoAccountJsonSchemaRepository>();
         services.AddScoped<IJsonSchemaValidationService, JsonSchemaDocumentValidator>();
         services.AddScoped<IJsonSchemaToMongoValidatorMapper, JsonSchemaDraftToMongoValidatorMapper>();
@@ -42,6 +43,7 @@ public static class DependencyInjection
         services.AddScoped<IAccessTokenIssuer, JwtAccessTokenIssuer>();
 
         services.AddScoped<IAuthenticationAppService, AuthenticationAppService>();
+        services.AddScoped<IPlatformAdminAppService, PlatformAdminAppService>();
         services.AddScoped<ITenantOnboardingAppService, TenantOnboardingAppService>();
         services.AddScoped<IWeatherForecastAppService, WeatherForecastAppService>();
         services.AddScoped<IAccountJsonSchemaAppService, AccountJsonSchemaAppService>();

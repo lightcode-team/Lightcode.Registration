@@ -1,0 +1,36 @@
+meta {
+  name: Activate Platform Admin
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/platform-admins/activate
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "token": "{{platformInviteToken}}",
+    "password": "{{platformPassword}}"
+  }
+}
+
+docs {
+  # Activate Platform Admin
+  
+  **POST** `/api/platform-admins/activate`
+  
+  Ativa o convite do ADM central e define a senha de login do painel.
+  
+  ## Corpo
+  - `token` - token recebido no convite.
+  - `password` - senha com no minimo 8 caracteres.
+  
+  Depois de ativar, use **Platform Auth Token**.
+}
