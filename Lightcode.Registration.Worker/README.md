@@ -36,7 +36,7 @@ Em Docker Compose o serviço `worker` arranca automaticamente com `Mongo__Connec
 
 Mensagens publicadas por:
 
-- **API principal** — credenciais OAuth, confirmação de email, forgot-password
+- **API principal** — onboarding do tenant, confirmação de email, forgot-password
 - **EmailApi** — `POST /api/emails/send`
 - **OAuthClientAppService** — reenvio de credenciais
 

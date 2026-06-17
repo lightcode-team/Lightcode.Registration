@@ -30,5 +30,6 @@ public interface IPlatformAdminAppService
     Task<ServiceResult<InvitePlatformAdminResult>> EnsureTenantOwnerAsync(
         string email,
         string tenantId,
+        bool sendEmail = true,
         CancellationToken cancellationToken = default);
 }

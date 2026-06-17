@@ -35,7 +35,9 @@ public static class RegistrationApiHostExtensions
 
         builder.Services.Configure<MongoOptions>(builder.Configuration.GetSection(MongoOptions.SectionName));
         builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+        builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection(SecurityOptions.SectionName));
         builder.Services.Configure<MasterOptions>(builder.Configuration.GetSection(MasterOptions.SectionName));
+        builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));
         builder.Services.Configure<TenantDefaultSmtpOptions>(
             builder.Configuration.GetSection(TenantDefaultSmtpOptions.SectionName));
         builder.Services.Configure<RegistrationOptions>(
@@ -76,9 +78,32 @@ public static class RegistrationApiHostExtensions
         builder.Services.AddInfrastructure(registerRabbitMqEmailEnqueuePublisher: hostOptions.RegisterRabbitMqConnection);
         builder.Services.AddApplication();
 
+        var corsSection = builder.Configuration.GetSection(CorsOptions.SectionName).Get<CorsOptions>();
+        var allowedOrigins = corsSection?.AllowedOrigins?
+            .Where(origin => !string.IsNullOrWhiteSpace(origin))
+            .Select(origin => origin.Trim().TrimEnd('/'))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray() ?? [];
+
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                if (allowedOrigins.Length > 0)
+                    policy.WithOrigins(allowedOrigins);
+                else if (builder.Environment.IsDevelopment())
+                    policy.WithOrigins("http://localhost:8080", "http://localhost:5173");
+                else
+                    return;
+
+                policy.AllowAnyHeader().AllowAnyMethod();
+            });
+        });
+
         builder.Services.AddHttpContextAccessor();
 
         builder.Services.AddScoped<IJwtTenantTokenValidator, JwtTenantTokenValidator>();
+        builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>, TenantJwtBearerOptionsPostConfigure>();
 
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(o =>
@@ -87,7 +112,6 @@ public static class RegistrationApiHostExtensions
                 o.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection.SigningKey)),
                     ValidateIssuer = false,
                     ValidateAudience = false,
                     ValidateLifetime = true,
@@ -210,6 +234,7 @@ public static class RegistrationApiHostExtensions
         if (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") != "true")
             app.UseHttpsRedirection();
 
+        app.UseCors();
         app.UseAuthentication();
         app.UseTenantResolution();
         app.UseAuthorization();

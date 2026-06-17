@@ -51,6 +51,7 @@ public sealed class TokenIssuanceProfile
 
     public static TokenIssuanceProfile ForPasswordGrant(
         JwtOptions jwt,
+        RegistrationOptions registration,
         string tenantId,
         IReadOnlyList<string> roles,
         string? userId = null,
@@ -59,7 +60,7 @@ public sealed class TokenIssuanceProfile
     {
         return new TokenIssuanceProfile
         {
-            Issuer = $"{jwt.Issuer}/{tenantId}",
+            Issuer = TenantTokenIssuer.Build(registration, jwt, tenantId),
             Audience = $"{jwt.Audience}/{tenantId}",
             AccessTokenExpirationMinutes = jwt.ExpirationMinutes,
             RefreshTokenExpirationDays = jwt.RefreshTokenExpirationDays,
@@ -74,13 +75,14 @@ public sealed class TokenIssuanceProfile
 
     public static TokenIssuanceProfile ForPlatformAdminTenant(
         JwtOptions jwt,
+        RegistrationOptions registration,
         string tenantId,
         string adminId,
         string email)
     {
         return new TokenIssuanceProfile
         {
-            Issuer = $"{jwt.Issuer}/{tenantId}",
+            Issuer = TenantTokenIssuer.Build(registration, jwt, tenantId),
             Audience = $"{jwt.Audience}/{tenantId}",
             AccessTokenExpirationMinutes = jwt.ExpirationMinutes,
             RefreshTokenExpirationDays = jwt.RefreshTokenExpirationDays,

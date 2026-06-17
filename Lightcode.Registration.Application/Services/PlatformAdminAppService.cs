@@ -19,6 +19,7 @@ public sealed class PlatformAdminAppService(
     IPasswordHasher passwordHasher,
     ISecureTokenGenerator tokenGenerator,
     IAccessTokenIssuer accessTokenIssuer,
+    ITenantSigningKeyResolver tenantSigningKeyResolver,
     IEmailEnqueuePublisher emailEnqueuePublisher,
     IOptions<MasterOptions> masterOptions,
     IOptions<JwtOptions> jwtOptions,
@@ -47,11 +48,12 @@ public sealed class PlatformAdminAppService(
     public async Task<ServiceResult<InvitePlatformAdminResult>> EnsureTenantOwnerAsync(
         string email,
         string tenantId,
+        bool sendEmail = true,
         CancellationToken cancellationToken = default) =>
         await CreateInviteAsync(
             email,
             [tenantId],
-            sendEmail: true,
+            sendEmail,
             skipInviteIfActive: true,
             cancellationToken);
 
@@ -141,11 +143,13 @@ public sealed class PlatformAdminAppService(
 
         var profile = TokenIssuanceProfile.ForPlatformAdminTenant(
             jwtOptions.Value,
+            registrationOptions.Value,
             tenant.Id,
             admin.Id,
             admin.Email);
 
-        var token = accessTokenIssuer.CreateAccessToken(admin.Id, tenant.Id, profile);
+        var signingKey = await tenantSigningKeyResolver.ResolveSigningKeyAsync(tenant.Id, cancellationToken);
+        var token = accessTokenIssuer.CreateAccessToken(admin.Id, tenant.Id, profile, signingKey);
         return ServiceResult<PlatformTenantTokenResult>.Ok(new PlatformTenantTokenResult(tenant.Id, token));
     }
 

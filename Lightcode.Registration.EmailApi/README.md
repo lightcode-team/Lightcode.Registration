@@ -12,7 +12,9 @@ API dedicada à gestão de **templates de email** e **enfileiramento de envios**
 docker compose up -d mongo rabbitmq
 ```
 
-A API principal deve estar configurada com o mesmo `Jwt:SigningKey` para validar tokens emitidos por `/api/auth/token`.
+A API principal e a EmailApi devem apontar para o mesmo Mongo master. Tokens tenant-scoped sao assinados com RS256 usando a private key RSA do tenant, e validados com a public key JWK gravada em `SaasMasterDb.Tenants`.
+
+`Jwt:SigningKey` tambem deve coincidir entre os servicos para validar tokens centrais de plataforma.
 
 ## Executar
 
@@ -115,7 +117,8 @@ A API principal também publica na mesma fila (provisionamento, confirmação de
 | Secção | Descrição |
 |--------|-----------|
 | `Mongo:*` | Ligação e banco master |
-| `Jwt:SigningKey` | **Deve coincidir** com a API principal |
+| `Jwt:SigningKey` | Deve coincidir com a API principal para tokens centrais |
+| `Security:TenantSigningKeyEncryptionKey` | Necessaria apenas se este servico precisar migrar/chavear tenants legados; APIs externas nao usam este segredo |
 | `RabbitMQ:*` | Fila de dispatch de emails |
 | `TenantDefaultSmtp` | Referência para seed de tenants (envio real é SMTP do tenant no Worker) |
 

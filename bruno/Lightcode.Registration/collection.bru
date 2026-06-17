@@ -6,22 +6,25 @@ meta {
 docs {
   # Lightcode.Registration (API principal)
 
-  API multi-tenant (MongoDB, JWT, contas e JSON Schemas). Este host **não** expõe rotas de email/templates; use a coleção **Lightcode.Registration.EmailApi** para isso.
+  API multi-tenant (MongoDB, JWT, contas e JSON Schemas). Este host **nao** expoe rotas de email/templates; use a colecao **Lightcode.Registration.EmailApi** para isso.
+
+  Tokens tenant-scoped sao assinados com **RS256** e validados por OpenID/JWKS publico do tenant.
 
   ## Fluxo sugerido (LOCAL)
-  1. **Create Tenant** — tenant + schema default de conta.
-  2. **Register Account** — `POST /api/accounts` com `X-Tenant-Id`, ou `POST /api/tenants/{tenantId}/accounts`.
-  3. **Issue Token** — admin de bootstrap (Development) ou outro utilizador; header `X-Tenant-Id`; copiar `access_token` para `jwt`.
-  4. **Update Account (JWT)** — `PUT /api/accounts/{userId}` com Bearer.
-  5. **Account JSON Schemas** — criar/alterar/apagar com JWT **admin**; listar/ver com qualquer utilizador do tenant.
-  6. **Platform** — convidar/ativar ADM central, listar tenants e emitir JWT tenant-scoped para operar multiplos tenants com um unico email.
+  1. **Create Tenant** - tenant + par RSA + schema default de conta.
+  2. **Issue Token** ou **Client Credentials** - copiar `access_token` para `jwt`.
+  3. **Discovery / OpenID Configuration** e **Discovery / JWKS** - validar metadados publicos do tenant.
+  4. **Register Account** - `POST /api/accounts` com `X-Tenant-Id`, ou `POST /api/tenants/{tenantId}/accounts`.
+  5. **Update Account (JWT)** - `PUT /api/accounts/{userId}` com Bearer.
+  6. **Account JSON Schemas** - criar/alterar/apagar com JWT **admin**; listar/ver com qualquer utilizador do tenant.
+  7. **Platform** - convidar/ativar ADM central, listar tenants e emitir JWT tenant-scoped para operar multiplos tenants com um unico email.
 
   ## Envelope de resposta
   Campos comuns: `Error`, `Errors`, `StatusCode`, `Data`. Opcional: `Message`.
 
   ## Ambiente
-  - **LOCAL** — `dotnet run` no projeto `Lightcode.Registration`, porta HTTP **5012** (`launchSettings.json`).
-  - **DOCKER** — serviço `api` no `docker-compose.yml`, **http://localhost:8080**.
+  - **LOCAL** - `dotnet run` no projeto `Lightcode.Registration`, porta HTTP **5012** (`launchSettings.json`).
+  - **DOCKER** - servico `api` no `docker-compose.yml`, **http://localhost:8080**.
 
-  O JWT emitido aqui serve na **Email API** desde que a mesma `Jwt__SigningKey` (e issuer/audience) esteja configurada nos dois hosts.
+  O JWT tenant-scoped emitido aqui serve na **Email API** porque os hosts compartilham o Mongo master e usam a public key JWK do tenant. APIs externas devem usar `Authority={{baseUrl}}/tenants/{{tenantId}}` e o `Audience` esperado pela aplicacao cliente.
 }

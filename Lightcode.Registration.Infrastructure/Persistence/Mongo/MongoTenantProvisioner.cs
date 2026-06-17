@@ -4,6 +4,7 @@ using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Registration;
 using Lightcode.Registration.Application.Security;
 using Lightcode.Registration.Domain.Entities;
+using Lightcode.Registration.Infrastructure.Security;
 using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 
@@ -13,6 +14,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
 {
     private const string ClientCredentialsTemplateKey = "client-credentials-secret";
     private const string PlatformAdminInviteTemplateKey = "platform-admin-invite";
+    private const string TenantOnboardingTemplateKey = "tenant-onboarding";
 
     private readonly IMongoClient _mongoClient;
     private readonly IMongoCollection<Tenant> _tenants;
@@ -23,13 +25,16 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
     private readonly IOAuthClientRepository _oauthClientRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ISecureTokenGenerator _tokenGenerator;
+    private readonly ITenantSigningKeyProtector _signingKeyProtector;
     private readonly JwtOptions _jwtOptions;
+    private readonly RegistrationOptions _registrationOptions;
     private readonly TenantDefaultSmtpOptions _defaultTenantSmtp;
 
     public MongoTenantProvisioner(
         IMongoClient client,
         IOptions<MongoOptions> mongoOptions,
         IOptions<JwtOptions> jwtOptions,
+        IOptions<RegistrationOptions> registrationOptions,
         IOptions<TenantDefaultSmtpOptions> defaultTenantSmtp,
         IEmailTemplateRepository emailTemplates,
         IAccountJsonSchemaRepository accountSchemas,
@@ -37,7 +42,8 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
         IUsersCollectionSchemaApplier usersSchemaApplier,
         IOAuthClientRepository oauthClientRepository,
         IPasswordHasher passwordHasher,
-        ISecureTokenGenerator tokenGenerator)
+        ISecureTokenGenerator tokenGenerator,
+        ITenantSigningKeyProtector signingKeyProtector)
     {
         _mongoClient = client;
         _emailTemplates = emailTemplates;
@@ -47,7 +53,9 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
         _oauthClientRepository = oauthClientRepository;
         _passwordHasher = passwordHasher;
         _tokenGenerator = tokenGenerator;
+        _signingKeyProtector = signingKeyProtector;
         _jwtOptions = jwtOptions.Value;
+        _registrationOptions = registrationOptions.Value;
         _defaultTenantSmtp = defaultTenantSmtp.Value;
         var mongo = mongoOptions.Value;
         var master = client.GetDatabase(mongo.MasterDatabaseName);
@@ -60,6 +68,8 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
     {
         var tenantId = Guid.NewGuid().ToString("N");
         var dbName = $"tenant_{tenantId}";
+        var now = DateTime.UtcNow;
+        var signingKey = TenantRsaSigningKeyFactory.Create();
 
         var tenant = new Tenant
         {
@@ -67,6 +77,12 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
             Name = request.Name,
             DatabaseName = dbName,
             ConnectionString = null,
+            SigningPrivateKeyEncrypted = _signingKeyProtector.Protect(signingKey.PrivateKeyBase64),
+            SigningPublicKeyJwk = signingKey.PublicKeyJwk,
+            SigningKeyId = signingKey.KeyId,
+            SigningKeyVersion = 1,
+            CreatedAt = now,
+            SigningKeyCreatedAt = now,
             Active = true
         };
 
@@ -74,7 +90,6 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
 
         await SeedTenantSmtpSettingsAsync(dbName, cancellationToken);
 
-        var now = DateTime.UtcNow;
         var defaultSchema = new AccountJsonSchema
         {
             Id = Guid.NewGuid().ToString("N"),
@@ -95,6 +110,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
             await _usersSchemaApplier.ApplyAsync(tenant.Id, mongoInner, cancellationToken);
 
         await SeedClientCredentialsEmailTemplateAsync(tenant, now, cancellationToken);
+        await SeedTenantOnboardingEmailTemplateAsync(tenant, now, cancellationToken);
         await SeedPlatformAdminInviteEmailTemplateAsync(tenant, now, cancellationToken);
         await SeedEmailConfirmationTemplatesAsync(tenant, now, cancellationToken);
         await SeedPasswordResetEmailTemplateAsync(tenant, now, cancellationToken);
@@ -129,7 +145,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
                 new OAuthClientTokenClaimValue
                 {
                     Type = TokenClaimTypes.Issuer,
-                    Value = $"{_jwtOptions.Issuer}/{tenantId}"
+                    Value = TenantTokenIssuer.Build(_registrationOptions, _jwtOptions, tenantId)
                 },
                 new OAuthClientTokenClaimValue
                 {
@@ -210,6 +226,53 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
                 {{activationUrl}}
 
                 Token: {{activationToken}}
+                Expira em: {{expiresAtUtc}}
+                """,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        await _emailTemplates.InsertAsync(template, cancellationToken);
+    }
+
+    private async Task SeedTenantOnboardingEmailTemplateAsync(
+        Tenant tenant,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var template = new EmailTemplate
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            TenantId = tenant.Id,
+            Key = TenantOnboardingTemplateKey,
+            DisplayName = "Onboarding do tenant",
+            Subject = "Tenant criado - {{tenantName}}",
+            HtmlBody = """
+                <p>Olá,</p>
+                <p>O tenant <strong>{{tenantName}}</strong> foi criado com sucesso.</p>
+                <p>Guarde as credenciais abaixo em local seguro; os segredos não serão reenviados.</p>
+                <ul>
+                  <li><strong>Tenant ID:</strong> {{tenantId}}</li>
+                  <li><strong>Client ID:</strong> {{clientId}}</li>
+                  <li><strong>Client Secret:</strong> {{clientSecret}}</li>
+                </ul>
+                <p>Ative o acesso administrativo pelo link abaixo:</p>
+                <p><a href="{{activationUrl}}">{{activationUrl}}</a></p>
+                <p>Token de ativação: <code>{{activationToken}}</code></p>
+                <p>Expira em: {{expiresAtUtc}}</p>
+                """,
+            TextBody = """
+                O tenant {{tenantName}} foi criado com sucesso.
+
+                Guarde as credenciais abaixo em local seguro; os segredos não serão reenviados.
+
+                Tenant ID: {{tenantId}}
+                Client ID: {{clientId}}
+                Client Secret: {{clientSecret}}
+                Ativação administrativa:
+                {{activationUrl}}
+
+                Token de ativação: {{activationToken}}
                 Expira em: {{expiresAtUtc}}
                 """,
             CreatedAtUtc = now,

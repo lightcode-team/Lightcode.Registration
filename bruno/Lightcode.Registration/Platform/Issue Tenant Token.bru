@@ -25,6 +25,8 @@ docs {
   
   Emite um JWT tenant-scoped para o ADM central operar os endpoints atuais do tenant.
   
+  O token tenant-scoped é assinado com **RS256** usando a private key RSA do tenant e inclui `kid` no header.
+  
   ## Auth
   - Bearer `platformJwt`.
   
@@ -35,4 +37,8 @@ docs {
   - `token.expires_in`
   
   Use o `access_token` retornado em `/api/accounts`, `/api/account-json-schemas` e `/api/oauth-clients`.
+  
+  Para validar em APIs cliente, use:
+  - `{{openIdConfigurationUrl}}`
+  - `{{jwksUrl}}`
 }
