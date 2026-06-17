@@ -24,7 +24,8 @@ services:
       RABBITMQ_DEFAULT_USER: ${RabbitMQ__UserName:-guest}
       RABBITMQ_DEFAULT_PASS: ${RabbitMQ__Password:-guest}
     ports:
-      - "15672:5672"
+      - "5672:5672"
+      - "15672:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 15s
@@ -43,7 +44,7 @@ services:
       rabbitmq:
         condition: service_healthy
     ports:
-      - "8082:8080"
+      - "8080:8080"
     env_file:
       - ${REGISTRATION_ENV_FILE:-./.env}
     environment:
