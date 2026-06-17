@@ -42,7 +42,11 @@ docs {
   - `token_type` — `Bearer`
   - `expires_in` — segundos
   
-  O JWT inclui `sub` (id do utilizador em Mongo) e `tenantId` com `iss`/`aud` específicos do tenant.
+  O JWT inclui `sub` (id do utilizador em Mongo), `tenantId`, `token_use=tenant_access` e `iss`/`aud` específicos do tenant.
+  
+  O token tenant-scoped é assinado com **RS256** e inclui `kid` no header. APIs cliente devem validar via:
+  - **Discovery / OpenID Configuration**
+  - **Discovery / JWKS**
   
   ## Erros comuns
   - `400` — falta `X-Tenant-Id` ou campos obrigatórios

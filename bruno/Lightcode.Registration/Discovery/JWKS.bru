@@ -1,0 +1,37 @@
+meta {
+  name: JWKS
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/tenants/{{tenantId}}/.well-known/jwks.json
+  body: none
+  auth: none
+}
+
+docs {
+  # JWKS do tenant
+  
+  **GET** `/tenants/{tenantId}/.well-known/jwks.json`
+  
+  Retorna a chave publica RSA usada para validar JWTs tenant-scoped assinados com RS256.
+  
+  ## Resposta
+  ```json
+  {
+    "keys": [
+      {
+        "kty": "RSA",
+        "use": "sig",
+        "kid": "tenant-key-id",
+        "alg": "RS256",
+        "n": "...",
+        "e": "AQAB"
+      }
+    ]
+  }
+  ```
+  
+  O `kid` deve bater com o header do JWT emitido por `/api/auth/token` ou `/api/platform/tenants/{tenantId}/token`.
+}

@@ -1,9 +1,14 @@
 vars {
   baseUrl: http://localhost:8082
+  tenantId: ""
+  tenantAuthority: {{baseUrl}}/tenants/{{tenantId}}
+  openIdConfigurationUrl: {{baseUrl}}/tenants/{{tenantId}}/.well-known/openid-configuration
+  jwksUrl: {{baseUrl}}/tenants/{{tenantId}}/.well-known/jwks.json
+  tokenAudience: api-do-cliente
   rabbitManagementUrl: http://localhost:15672
   mongoUrl: mongodb://localhost:27017
-  tenantId: 2af7ae00edb9408ba47120e9431d6cd7
-  jwt: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OWU0ZjQ2ODc4MjAxYzQyOTg5NzVjNjEiLCJ0ZW5hbnRJZCI6Ijk0NzRiMmZhNTcwOTRjNmVhZDUzNDNkYWIzOTViM2FkIiwicm9sZSI6ImFkbWluIiwiZXhwIjoxNzc2NjIxMTQwLCJpc3MiOiJMaWdodGNvZGUuUmVnaXN0cmF0aW9uIiwiYXVkIjoiTGlnaHRjb2RlLlJlZ2lzdHJhdGlvbiJ9.Yt_CmPpE9OJTR8lqZjuGfm97-oVp1rjrGnC_5zEef-k
+  jwt: ""
+  refreshToken: ""
   provisioningKey: ""
   loginUsername: admin
   loginPassword: ChangeThisAdmin!12345678
@@ -12,11 +17,11 @@ vars {
   oauthClientSecret: ""
   platformAdminEmail: frederick.aquino@gmail.com
   platformPassword: ChangeThisPlatform!12345678
-  platformInviteToken: 
-  platformJwt: 
-  platformTenantJwt: 
-  forgotPasswordEmail: 
-  forgotPasswordUsername: 
-  passwordResetToken: 
-  resetPasswordEmail: 
+  platformInviteToken: ""
+  platformJwt: ""
+  platformTenantJwt: ""
+  forgotPasswordEmail: ""
+  forgotPasswordUsername: ""
+  passwordResetToken: ""
+  resetPasswordEmail: ""
 }

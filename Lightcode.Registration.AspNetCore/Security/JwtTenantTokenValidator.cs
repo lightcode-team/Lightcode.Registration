@@ -13,7 +13,9 @@ public interface IJwtTenantTokenValidator
 
 public sealed class JwtTenantTokenValidator(
     IOAuthClientRepository oauthClientRepository,
-    IOptions<JwtOptions> jwtOptions) : IJwtTenantTokenValidator
+    ITenantLookup tenantLookup,
+    IOptions<JwtOptions> jwtOptions,
+    IOptions<RegistrationOptions> registrationOptions) : IJwtTenantTokenValidator
 {
     public async Task ValidateAsync(TokenValidatedContext context)
     {
@@ -28,6 +30,15 @@ public sealed class JwtTenantTokenValidator(
         if (string.IsNullOrWhiteSpace(tenantId))
         {
             ValidatePlatformAdminToken(context);
+            return;
+        }
+
+        var tenant = await tenantLookup.FindActiveByIdAsync(
+            tenantId,
+            context.HttpContext.RequestAborted);
+        if (tenant is null)
+        {
+            context.Fail("Tenant do token não encontrado ou inativo.");
             return;
         }
 
@@ -51,7 +62,11 @@ public sealed class JwtTenantTokenValidator(
         }
         else
         {
-            expected = TokenIssuanceProfile.ForPasswordGrant(jwtOptions.Value, tenantId, []);
+            expected = TokenIssuanceProfile.ForPasswordGrant(
+                jwtOptions.Value,
+                registrationOptions.Value,
+                tenantId,
+                []);
         }
 
         var tokenIssuer = JwtClaimReader.GetIssuer(principal);

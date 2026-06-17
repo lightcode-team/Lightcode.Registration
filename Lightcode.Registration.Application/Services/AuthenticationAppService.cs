@@ -16,8 +16,10 @@ public sealed class AuthenticationAppService(
     IOAuthClientRepository oauthClientRepository,
     IRefreshTokenRepository refreshTokenRepository,
     IAccessTokenIssuer accessTokenIssuer,
+    ITenantSigningKeyResolver tenantSigningKeyResolver,
     IPasswordHasher passwordHasher,
-    IOptions<JwtOptions> jwtOptions) : IAuthenticationAppService
+    IOptions<JwtOptions> jwtOptions,
+    IOptions<RegistrationOptions> registrationOptions) : IAuthenticationAppService
 {
     public async Task<ServiceResult<IssueTokenResponse>> IssueTokenAsync(
         TokenRequest request,
@@ -86,6 +88,7 @@ public sealed class AuthenticationAppService(
         var credentials = outcome.Success!;
         var profile = TokenIssuanceProfile.ForPasswordGrant(
             jwtOptions.Value,
+            registrationOptions.Value,
             tenantId,
             credentials.Roles,
             credentials.UserId,
@@ -125,7 +128,8 @@ public sealed class AuthenticationAppService(
         if (profile is null)
             return ServiceResult<IssueTokenResponse>.Fail(401, "Refresh token inválido.");
 
-        var response = accessTokenIssuer.CreateAccessToken(stored.SubjectId, tenantId, profile);
+        var signingKey = await tenantSigningKeyResolver.ResolveSigningKeyAsync(tenantId, cancellationToken);
+        var response = accessTokenIssuer.CreateAccessToken(stored.SubjectId, tenantId, profile, signingKey);
         return ServiceResult<IssueTokenResponse>.Ok(response with { RefreshToken = request.RefreshToken.Trim() });
     }
 
@@ -163,6 +167,7 @@ public sealed class AuthenticationAppService(
         var identity = await TryResolveUserIdentityAsync(tenantId, stored.SubjectId, cancellationToken);
         return TokenIssuanceProfile.ForPasswordGrant(
             jwtOptions.Value,
+            registrationOptions.Value,
             tenantId,
             stored.Roles,
             stored.SubjectId,
@@ -191,7 +196,8 @@ public sealed class AuthenticationAppService(
         string subjectType,
         CancellationToken cancellationToken)
     {
-        var access = accessTokenIssuer.CreateAccessToken(subjectId, tenantId, profile);
+        var signingKey = await tenantSigningKeyResolver.ResolveSigningKeyAsync(tenantId, cancellationToken);
+        var access = accessTokenIssuer.CreateAccessToken(subjectId, tenantId, profile, signingKey);
 
         var refreshDays = profile.RefreshTokenExpirationDays > 0 ? profile.RefreshTokenExpirationDays : 30;
         var maxUses = profile.MaxRefreshTokenUses > 0 ? profile.MaxRefreshTokenUses : 1;

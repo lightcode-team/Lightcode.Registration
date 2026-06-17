@@ -30,6 +30,8 @@ public static class DependencyInjection
         services.AddScoped<IUserCredentialValidator, UserCredentialValidator>();
         services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddSingleton<ISecureTokenGenerator, SecureTokenGenerator>();
+        services.AddSingleton<ITenantSigningKeyProtector, AesGcmTenantSigningKeyProtector>();
+        services.AddScoped<ITenantSigningKeyResolver, MongoTenantSigningKeyResolver>();
 
         services.AddScoped<IOAuthClientRepository, MongoOAuthClientRepository>();
         services.AddScoped<IOAuthClientAppService, OAuthClientAppService>();

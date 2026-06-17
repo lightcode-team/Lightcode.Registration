@@ -1,20 +1,25 @@
 vars {
   baseUrl: http://localhost:5012
-  tenantId: be8cf85a7ad441fbaf60fdd917531b54
-  jwt: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjbGllbnRfODE2ODFiYmQ4YjE3NDI1Y2E1YzNhNGMzODE0YjU2YzUiLCJ0ZW5hbnRJZCI6IjgxNjgxYmJkOGIxNzQyNWNhNWMzYTRjMzgxNGI1NmM1IiwiY2xpZW50X2lkIjoiY2xpZW50XzgxNjgxYmJkOGIxNzQyNWNhNWMzYTRjMzgxNGI1NmM1Iiwicm9sZSI6WyJhZG1pbiIsInNlbmQtZW1haWwiLCJlbWFpbHRlbXBsYXRlcmVhZCIsImNsaWVudHMtcmVhZCJdLCJzY29wZSI6WyJhZG1pbiIsIm93bmVyIl0sImV4cCI6MTc4MTAyMzkxNywiaXNzIjoiRmluQWkiLCJhdWQiOiJGaW5BaS5BcGkifQ.koN4-RHgPIpvTEl5KA4iGNRxRXih8XhFPastJ-H8Jj8
+  tenantId: 1b3ca779866a41cfa52aec39e65e82bd
+  tenantAuthority: {{baseUrl}}/tenants/{{tenantId}}
+  openIdConfigurationUrl: {{baseUrl}}/tenants/{{tenantId}}/.well-known/openid-configuration
+  jwksUrl: {{baseUrl}}/tenants/{{tenantId}}/.well-known/jwks.json
+  tokenAudience: api-do-cliente
+  jwt: ""
+  refreshToken: ""
   provisioningKey: 123456789
   loginUsername: admin
   loginPassword: ChangeThisAdmin!12345678
-  schemaId: 5abb8318fafc4abab761dfed911f0d08
-  oauthClientId: client_b7679744fe1f4c168b54e3c0980b5a5a
-  oauthClientSecret: E8PsmHLN5J2nLwgxh2pSPcyPvDgVwzPZdJHr9vfTxK4
+  schemaId: ""
+  oauthClientId: ""
+  oauthClientSecret: ""
   platformAdminEmail: frederick.aquino45@gmail.com
   platformPassword: ChangeThisPlatform!12345678
-  platformInviteToken: 76BF1bxUJLKx96mfTo8fndAn7Kb6B5PolFsu60X3gHU
-  platformJwt: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1OGFhYTg2ZmY4Y2E0Mzk3YjdkZWM5M2Q5MjQ5ZDllYyIsImVtYWlsIjoiZnJlZGVyaWNrLmFxdWlubzQ1QGdtYWlsLmNvbSIsInBsYXRmb3JtQWRtaW5JZCI6IjU4YWFhODZmZjhjYTQzOTdiN2RlYzkzZDkyNDlkOWVjIiwidG9rZW5fdXNlIjoicGxhdGZvcm1fYWRtaW4iLCJleHAiOjE3ODE1ODI3MTEsImlzcyI6IkxpZ2h0Y29kZS5SZWdpc3RyYXRpb24iLCJhdWQiOiJMaWdodGNvZGUuUmVnaXN0cmF0aW9uIn0.oAT7htxQVn-d-49jB0qfv-vIAfaK4rTcLEBlD5gxXnI
-  platformTenantJwt: 
-  forgotPasswordEmail: frederick.aquino23@gmail.com
-  forgotPasswordUsername: frederick.aquino23@gmail.com
-  passwordResetToken: 
-  resetPasswordEmail: frederick.aquino23@gmail.com
+  platformInviteToken: ""
+  platformJwt: ""
+  platformTenantJwt: ""
+  forgotPasswordEmail: ""
+  forgotPasswordUsername: ""
+  passwordResetToken: ""
+  resetPasswordEmail: ""
 }

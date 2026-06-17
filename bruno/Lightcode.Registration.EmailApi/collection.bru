@@ -6,20 +6,22 @@ meta {
 docs {
   # Lightcode.Registration.EmailApi
 
-  Host dedicado a **envio de email** (fila RabbitMQ) e **templates** por tenant. Todas as rotas exigem **Bearer JWT** com claim `tenantId` (mesmo token emitido pela API principal, desde que a configuração JWT seja alinhada).
+  Host dedicado a **envio de email** (fila RabbitMQ) e **templates** por tenant. Todas as rotas exigem **Bearer JWT** com claim `tenantId`.
+
+  Tokens tenant-scoped sao emitidos pela API principal com **RS256**. A Email API valida usando a public key JWK do tenant no Mongo master; APIs externas podem validar pelo discovery/JWKS publico da API principal.
 
   ## Antes de testar
-  1. Na coleção **Lightcode.Registration**: **Create Tenant** e **Issue Token** (ou registo + token).
-  2. Copie o `access_token` para a variável `jwt` **neste** ambiente Bruno (LOCAL/DOCKER da Email API).
-  3. Autorização por **roles** e **scope** no JWT:
-     - `template-read` — listar/obter templates
-     - `template-write` — criar/atualizar/apagar templates
-     - `send-email` — enfileirar envio
-     - scope `email-admin` — acesso total à Email API
+  1. Na colecao **Lightcode.Registration**: **Create Tenant** e **Issue Token** ou **Client Credentials**.
+  2. Copie o `access_token` para a variavel `jwt` **neste** ambiente Bruno (LOCAL/DOCKER da Email API).
+  3. Autorizacao por **roles** e **scope** no JWT:
+     - `template-read` - listar/obter templates
+     - `template-write` - criar/atualizar/apagar templates
+     - `send-email` - enfileirar envio
+     - scope `email-admin` - acesso total a Email API
 
   ## Portas
-  - **LOCAL** — `dotnet run` em `Lightcode.Registration.EmailApi`, HTTP **5013**.
-  - **DOCKER** — serviço `email-api`, **http://localhost:8081** (mapeamento típico deste repositório).
+  - **LOCAL** - `dotnet run` em `Lightcode.Registration.EmailApi`, HTTP **5013**.
+  - **DOCKER** - servico `email-api`, **http://localhost:8081** (mapeamento tipico deste repositorio).
 
-  A variável `registrationApiUrl` é só referência para abrir a coleção da API principal no mesmo ambiente.
+  A variavel `registrationApiUrl` e referencia para abrir a colecao da API principal no mesmo ambiente.
 }

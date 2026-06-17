@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application.Configuration;
@@ -12,16 +13,26 @@ namespace Lightcode.Registration.Infrastructure.Security;
 
 public sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> jwtOptions) : IAccessTokenIssuer
 {
-    public IssueTokenResponse CreateAccessToken(string subjectId, string tenantId, TokenIssuanceProfile profile)
+    public IssueTokenResponse CreateAccessToken(
+        string subjectId,
+        string tenantId,
+        TokenIssuanceProfile profile,
+        TenantSigningKeyMaterial signingKey)
     {
         var jwt = jwtOptions.Value;
-        var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey));
-        var creds = new SigningCredentials(signingKey, SecurityAlgorithms.HmacSha256);
+        using var rsa = RSA.Create();
+        rsa.ImportPkcs8PrivateKey(Convert.FromBase64String(signingKey.PrivateKeyBase64), out _);
+        var key = new RsaSecurityKey(rsa)
+        {
+            KeyId = signingKey.KeyId
+        };
+        var creds = new SigningCredentials(key, SecurityAlgorithms.RsaSha256);
 
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, subjectId),
-            new("tenantId", tenantId)
+            new("tenantId", tenantId),
+            new("token_use", "tenant_access")
         };
 
         if (!string.IsNullOrWhiteSpace(profile.ClientId))

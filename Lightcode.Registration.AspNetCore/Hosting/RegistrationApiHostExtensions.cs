@@ -35,6 +35,7 @@ public static class RegistrationApiHostExtensions
 
         builder.Services.Configure<MongoOptions>(builder.Configuration.GetSection(MongoOptions.SectionName));
         builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
+        builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection(SecurityOptions.SectionName));
         builder.Services.Configure<MasterOptions>(builder.Configuration.GetSection(MasterOptions.SectionName));
         builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));
         builder.Services.Configure<TenantDefaultSmtpOptions>(
@@ -102,6 +103,7 @@ public static class RegistrationApiHostExtensions
         builder.Services.AddHttpContextAccessor();
 
         builder.Services.AddScoped<IJwtTenantTokenValidator, JwtTenantTokenValidator>();
+        builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>, TenantJwtBearerOptionsPostConfigure>();
 
         builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             .AddJwtBearer(o =>
@@ -110,7 +112,6 @@ public static class RegistrationApiHostExtensions
                 o.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSection.SigningKey)),
                     ValidateIssuer = false,
                     ValidateAudience = false,
                     ValidateLifetime = true,

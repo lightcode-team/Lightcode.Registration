@@ -42,6 +42,8 @@ OpenAPI em Development: `GET /openapi/v1.json`.
 
 Cada tenant tem banco MongoDB dedicado. O isolamento e fisico por database, nao apenas por campo `TenantId`.
 
+O documento `Tenants` tambem guarda material de assinatura RSA por tenant: private key criptografada (`SigningPrivateKeyEncrypted`), public key em JWK (`SigningPublicKeyJwk`), `kid` (`SigningKeyId`) e versao. A chave privada nunca sai da plataforma; clientes validam JWTs pelo JWKS publico.
+
 ## Conceitos de credenciamento
 
 ### ADM central
@@ -77,6 +79,15 @@ Cada tenant ainda possui `OAuthClients` para integracoes maquina-a-maquina. O fl
 
 Use OAuth client para integracoes tecnicas. Use ADM central para painel humano multi-tenant.
 
+### Chave RSA do tenant
+
+Cada tenant novo recebe um par RSA proprio. A private key fica criptografada no master e assina JWTs tenant-scoped com RS256; a public key fica disponivel no endpoint JWKS do tenant.
+
+- tokens de tenant (`password`, `refresh_token`, `client_credentials` e token emitido via `/api/platform/tenants/{tenantId}/token`) usam a private key RSA do tenant;
+- tokens centrais de plataforma (`/api/platform-auth/token`) continuam usando `Jwt:SigningKey`;
+- tenants antigos sem RSA sao migrados preguiçosamente quando a chave e resolvida;
+- APIs externas validam via OpenID/JWKS, sem receber segredo sensivel.
+
 ## Fluxo completo: criar tenant e credenciar ADM central
 
 ### 1. Criar tenant
@@ -97,6 +108,7 @@ Content-Type: application/json
 Ao criar o tenant, a API:
 
 - cria registro em `SaasMasterDb.Tenants`;
+- gera chave RSA por tenant, salva a private key criptografada e publica apenas a public key em JWK;
 - cria banco `tenant_{id}`;
 - semeia schema default de conta;
 - semeia templates de email;
@@ -104,13 +116,15 @@ Ao criar o tenant, a API:
 - cria um OAuth client principal para uso tecnico;
 - cria ou reutiliza o ADM central pelo `adminEmail`;
 - vincula o ADM central ao tenant como `owner`;
-- envia convite de ativacao para o ADM central se ele ainda nao estiver ativo.
+- envia um email unico de onboarding ao `adminEmail` com `tenantId`, `clientId`, `clientSecret` e dados de ativacao do ADM central.
 
 Se o email ja existir como ADM central ativo, a API apenas adiciona o vinculo ao novo tenant. Nao cria outra senha e nao duplica o operador.
 
+A resposta HTTP da criacao do tenant nao retorna `clientSecret` nem chave privada. O `clientSecret` aparece apenas no email/log de onboarding.
+
 ### 2. Ativar o ADM central
 
-O convite gera um `inviteToken`. Ele pode vir por email ou ser copiado da resposta de desenvolvimento/Bruno.
+O email de onboarding inclui o token/link de ativacao quando o ADM central ainda nao esta ativo. Em desenvolvimento, com envio real desligado, o conteudo fica nos logs do Worker.
 
 ```http
 POST /api/platform-admins/activate
@@ -206,6 +220,7 @@ Esse JWT possui:
 - `role=admin`
 - `scope=owner`
 - issuer/audience do tenant
+- assinatura RS256 feita com a private key RSA do tenant e header `kid`
 
 Use esse `access_token` nos endpoints existentes do tenant, como:
 
@@ -367,6 +382,43 @@ Content-Type: application/json
 | `POST /api/auth/token` com `client_credentials` | JWT tenant-scoped de cliente OAuth | Integracoes maquina-a-maquina |
 | `POST /api/auth/token` com `refresh_token` | Novo JWT tenant-scoped | Renovar sessao existente |
 
+### Assinatura dos tokens
+
+| Tipo de token | Chave de assinatura |
+|---------------|---------------------|
+| JWT central de ADM plataforma | HMAC `Jwt:SigningKey` |
+| JWT tenant-scoped de usuario | RS256 com `Tenants.SigningPrivateKeyEncrypted` |
+| JWT tenant-scoped de OAuth client | RS256 com `Tenants.SigningPrivateKeyEncrypted` |
+| JWT tenant-scoped emitido pelo painel central | RS256 com `Tenants.SigningPrivateKeyEncrypted` |
+| Tenant legado sem RSA | migracao preguiçosa para chave RSA antes de emitir/validar novos tokens |
+
+Servicos internos que emitem tokens precisam de `Security:TenantSigningKeyEncryptionKey` para descriptografar a private key. APIs externas nao recebem essa chave: elas validam pelo discovery publico do tenant:
+
+```text
+GET /tenants/{tenantId}/.well-known/openid-configuration
+GET /tenants/{tenantId}/.well-known/jwks.json
+```
+
+Exemplo de validacao em uma API cliente:
+
+```csharp
+builder.Services
+    .AddAuthentication("Bearer")
+    .AddJwtBearer("Bearer", options =>
+    {
+        options.Authority = "https://registration.suaapi.com/tenants/{tenantId}";
+        options.Audience = "api-do-cliente";
+        options.RequireHttpsMetadata = true;
+        options.TokenValidationParameters = new()
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true
+        };
+    });
+```
+
 ## Endpoints
 
 ### Platform Admins
@@ -383,7 +435,9 @@ Content-Type: application/json
 
 | Metodo | Rota | Auth | Descricao |
 |--------|------|------|-----------|
-| POST | `/api/tenants` | `X-Provisioning-Key` | Cria tenant, schema default, templates, OAuth client e vinculo com ADM central |
+| POST | `/api/tenants` | `X-Provisioning-Key` | Cria tenant, par RSA, schema default, templates, OAuth client e vinculo com ADM central |
+| GET | `/tenants/{tenantId}/.well-known/openid-configuration` | Publico | Metadata OpenID do tenant |
+| GET | `/tenants/{tenantId}/.well-known/jwks.json` | Publico | JWKS com a public key RSA do tenant |
 
 ### Auth tenant-scoped
 
@@ -539,7 +593,8 @@ Para Gmail na porta 587, use App Password e `UsarSsl=true`:
 |-------|-----------|
 | `Mongo:ConnectionString` | Conexao MongoDB |
 | `Mongo:MasterDatabaseName` | Banco master, default `SaasMasterDb` |
-| `Jwt:SigningKey` | Chave HMAC, minimo 32 caracteres |
+| `Jwt:SigningKey` | Chave HMAC central; assina JWTs de plataforma e serve de fallback para tenants legados |
+| `Security:TenantSigningKeyEncryptionKey` | Chave mestra, minimo 32 caracteres, usada para criptografar/descriptografar private keys RSA de tenants |
 | `Master:ProvisioningApiKey` | Chave para criar tenants e convidar ADMs centrais |
 | `Registration:PublicApiBaseUrl` | URL publica para links de email |
 | `RabbitMQ:*` | Publicacao/consumo de mensagens |
@@ -550,6 +605,8 @@ Variaveis de ambiente usam `__` como separador:
 
 ```env
 Mongo__ConnectionString=mongodb://localhost:27017
+Jwt__SigningKey=change-me-with-a-long-random-secret
+Security__TenantSigningKeyEncryptionKey=change-me-with-another-long-random-secret
 Master__ProvisioningApiKey=123456789
 Smtp__UseSmtp=true
 ```
@@ -563,11 +620,12 @@ Ambiente local: `environments/LOCAL.bru` com `baseUrl: http://localhost:5012`.
 Fluxo sugerido para ADM central:
 
 1. **Create Tenant**: cria tenant e vincula `adminEmail`.
-2. **Platform / Activate Platform Admin**: ativa o convite com `platformInviteToken`.
-3. **Platform / Platform Auth Token**: copia `access_token` para `platformJwt`.
-4. **Platform / List Platform Tenants**: lista tenants vinculados.
-5. **Platform / Issue Tenant Token**: copia `token.access_token` para `jwt`.
-6. Usar `jwt` nos endpoints de contas, schemas e OAuth clients.
+2. Copiar do email/log de onboarding o `tenantId`, `clientId`, `clientSecret` e, se necessario, o token/link de ativacao.
+3. **Platform / Activate Platform Admin**: ativa o convite com o token de ativacao.
+4. **Platform / Platform Auth Token**: copia `access_token` para `platformJwt`.
+5. **Platform / List Platform Tenants**: lista tenants vinculados.
+6. **Platform / Issue Tenant Token**: copia `token.access_token` para `jwt`.
+7. Usar `jwt` nos endpoints de contas, schemas e OAuth clients.
 
 Fluxo sugerido para usuario:
 
