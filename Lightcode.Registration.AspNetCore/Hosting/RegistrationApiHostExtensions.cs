@@ -92,7 +92,7 @@ public static class RegistrationApiHostExtensions
                 if (allowedOrigins.Length > 0)
                     policy.WithOrigins(allowedOrigins);
                 else if (builder.Environment.IsDevelopment())
-                    policy.WithOrigins("http://localhost:8080", "http://localhost:5173");
+                    policy.WithOrigins("http://localhost:8080", "http://localhost:5173", "http://localhost:3000");
                 else
                     return;
 
