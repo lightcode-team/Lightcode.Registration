@@ -1,0 +1,57 @@
+@model Lightcode.Registration.Models.LoginViewModel
+@{
+    var frontConfig = Model.FrontConfig;
+    var messages = frontConfig.Messages;
+    var backgroundStyle = string.IsNullOrWhiteSpace(frontConfig.BackgroundImageUrl)
+        ? null
+        : $"--login-background-image: url('{frontConfig.BackgroundImageUrl}');";
+}
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@messages.PageTitle</title>
+    <style>
+        @Html.Raw(frontConfig.Css)
+    </style>
+</head>
+<body style="@backgroundStyle">
+    <main class="login-card" aria-labelledby="login-title">
+        @if (!string.IsNullOrWhiteSpace(frontConfig.LogoUrl))
+        {
+            <img class="login-logo" src="@frontConfig.LogoUrl" alt="@messages.Heading" />
+        }
+
+        <h1 id="login-title" class="login-title">@messages.Heading</h1>
+        <p class="login-subtitle">@messages.Subtitle</p>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="alert">@Model.ErrorMessage</div>
+        }
+
+        <form method="post" asp-action="Login" asp-controller="Auth" data-login-form>
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="TenantId" />
+
+            <div class="field">
+                <label for="Username">@messages.UsernameLabel</label>
+                <input asp-for="Username" autocomplete="username" placeholder="@messages.UsernamePlaceholder" data-login-username autofocus />
+                <span asp-validation-for="Username" class="field-error"></span>
+            </div>
+
+            <div class="field">
+                <label for="Password">@messages.PasswordLabel</label>
+                <input asp-for="Password" autocomplete="current-password" placeholder="@messages.PasswordPlaceholder" />
+                <span asp-validation-for="Password" class="field-error"></span>
+            </div>
+
+            <button type="submit" class="login-submit" data-login-submit data-loading-text="@messages.SubmittingButton">
+                @messages.SubmitButton
+            </button>
+        </form>
+    </main>
+    <script src="~/auth/js/login.js" asp-append-version="true"></script>
+</body>
+</html>

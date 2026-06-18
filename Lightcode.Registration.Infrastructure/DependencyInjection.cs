@@ -23,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<ITenantLookup, MongoTenantLookup>();
         services.AddScoped<IPlatformAdminRepository, MongoPlatformAdminRepository>();
         services.AddScoped<IAccountJsonSchemaRepository, MongoAccountJsonSchemaRepository>();
+        services.AddScoped<IFrontConfigRepository, MongoFrontConfigRepository>();
         services.AddScoped<IJsonSchemaValidationService, JsonSchemaDocumentValidator>();
         services.AddScoped<IJsonSchemaToMongoValidatorMapper, JsonSchemaDraftToMongoValidatorMapper>();
         services.AddScoped<IUsersCollectionSchemaApplier, MongoUsersCollectionSchemaApplier>();
@@ -56,6 +57,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountCompleteRegistrationAppService, AccountCompleteRegistrationAppService>();
         services.AddScoped<IAccountEmailConfirmationAppService, AccountEmailConfirmationAppService>();
         services.AddScoped<IAccountPasswordResetAppService, AccountPasswordResetAppService>();
+        services.AddScoped<IFrontConfigAppService, FrontConfigAppService>();
 
         services.AddScoped<ITenantSmtpSettingsRepository, MongoTenantSmtpSettingsRepository>();
         services.AddScoped<IEmailTemplateRepository, MongoEmailTemplateRepository>();

@@ -22,6 +22,7 @@ public static class MongoSerialization
             RegisterTenantSmtpSettings();
             RegisterOAuthClient();
             RegisterRefreshToken();
+            RegisterFrontConfig();
             _registered = true;
         }
     }
@@ -144,6 +145,47 @@ public static class MongoSerialization
             cm.AutoMap();
             cm.SetIgnoreExtraElements(true);
             cm.MapIdProperty(x => x.Id);
+        });
+    }
+
+    private static void RegisterFrontConfig()
+    {
+        if (BsonClassMap.IsClassMapRegistered(typeof(FrontConfig)))
+            return;
+
+        BsonClassMap.RegisterClassMap<FrontConfig>(cm =>
+        {
+            cm.AutoMap();
+            cm.SetIgnoreExtraElements(true);
+            cm.MapIdProperty(x => x.Id);
+            cm.GetMemberMap(x => x.Active).SetElementName("active");
+            cm.GetMemberMap(x => x.Messages).SetElementName("messages");
+            cm.GetMemberMap(x => x.Css).SetElementName("css");
+            cm.GetMemberMap(x => x.LogoUrl).SetElementName("logo_url");
+            cm.GetMemberMap(x => x.BackgroundImageUrl).SetElementName("background_image_url");
+            cm.GetMemberMap(x => x.CreatedAtUtc).SetElementName("created_at_utc");
+            cm.GetMemberMap(x => x.UpdatedAtUtc).SetElementName("updated_at_utc");
+        });
+
+        if (BsonClassMap.IsClassMapRegistered(typeof(FrontConfigMessages)))
+            return;
+
+        BsonClassMap.RegisterClassMap<FrontConfigMessages>(cm =>
+        {
+            cm.AutoMap();
+            cm.SetIgnoreExtraElements(true);
+            cm.GetMemberMap(x => x.PageTitle).SetElementName("page_title");
+            cm.GetMemberMap(x => x.Heading).SetElementName("heading");
+            cm.GetMemberMap(x => x.Subtitle).SetElementName("subtitle");
+            cm.GetMemberMap(x => x.UsernameLabel).SetElementName("username_label");
+            cm.GetMemberMap(x => x.UsernamePlaceholder).SetElementName("username_placeholder");
+            cm.GetMemberMap(x => x.UsernameRequired).SetElementName("username_required");
+            cm.GetMemberMap(x => x.PasswordLabel).SetElementName("password_label");
+            cm.GetMemberMap(x => x.PasswordPlaceholder).SetElementName("password_placeholder");
+            cm.GetMemberMap(x => x.PasswordRequired).SetElementName("password_required");
+            cm.GetMemberMap(x => x.SubmitButton).SetElementName("submit_button");
+            cm.GetMemberMap(x => x.SubmittingButton).SetElementName("submitting_button");
+            cm.GetMemberMap(x => x.AuthenticationNotIntegrated).SetElementName("authentication_not_integrated");
         });
     }
 }

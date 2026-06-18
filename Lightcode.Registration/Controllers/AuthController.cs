@@ -4,18 +4,48 @@ using Lightcode.Registration.Application.Contracts.Auth;
 using Lightcode.Registration.Http;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Lightcode.Registration.Models;
 
 namespace Lightcode.Registration.Controllers;
 
-[ApiController]
-[Route("api/[controller]")]
-public sealed class AuthController(IAuthenticationAppService authenticationAppService) : ControllerBase
+public sealed class AuthController(
+    IAuthenticationAppService authenticationAppService,
+    IFrontConfigAppService frontConfigAppService) : Controller
 {
+    [HttpGet("/auth/login")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Login([FromQuery] string? tenantId, CancellationToken cancellationToken)
+    {
+        var resolvedTenantId = ResolveTenantId(tenantId);
+        return View("~/Views/Auth/Login.cshtml", new LoginViewModel
+        {
+            TenantId = resolvedTenantId,
+            FrontConfig = await frontConfigAppService.ResolveAsync(resolvedTenantId, cancellationToken)
+        });
+    }
+
+    [HttpPost("/auth/login")]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Login(LoginViewModel model, CancellationToken cancellationToken)
+    {
+        var resolvedTenantId = ResolveTenantId(model.TenantId);
+        model.TenantId = resolvedTenantId;
+        model.FrontConfig = await frontConfigAppService.ResolveAsync(resolvedTenantId, cancellationToken);
+
+        if (!ModelState.IsValid)
+            return View("~/Views/Auth/Login.cshtml", model);
+
+        model.Password = string.Empty;
+        model.ErrorMessage = model.FrontConfig.Messages.AuthenticationNotIntegrated;
+        return View("~/Views/Auth/Login.cshtml", model);
+    }
+
     /// <summary>
     /// Emite JWT e refresh token. Suporta <c>grant_type</c>: <c>password</c>, <c>refresh_token</c>, <c>client_credentials</c>.
     /// Envie o tenant no cabeçalho <see cref="TenantHttpHeaders.TenantId"/> (pedido anónimo, sem JWT).
     /// </summary>
-    [HttpPost("token")]
+    [HttpPost("/api/auth/token")]
     [AllowAnonymous]
     public async Task<IActionResult> IssueToken([FromBody] TokenRequest body, CancellationToken cancellationToken)
     {
@@ -25,5 +55,13 @@ public sealed class AuthController(IAuthenticationAppService authenticationAppSe
 
         var result = await authenticationAppService.IssueTokenAsync(body, tenantId, cancellationToken);
         return result.ToApiResponse();
+    }
+
+    private string? ResolveTenantId(string? tenantId)
+    {
+        if (!string.IsNullOrWhiteSpace(tenantId))
+            return tenantId.Trim();
+
+        return TenantHttpHeaders.TryGetTenantId(Request);
     }
 }
