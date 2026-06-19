@@ -1,0 +1,36 @@
+meta {
+  name: Platform 2FA Disable Begin
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/api/platform-admins/me/2fa/disable/begin
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{platformJwt}}
+}
+
+headers {
+  Authorization: Bearer {{platformJwt}}
+}
+
+docs {
+  # Iniciar desativação de 2FA do Platform Admin
+  
+  **POST** `/api/platform-admins/me/2fa/disable/begin`
+  
+  Cria um challenge para desativar 2FA do Platform Admin autenticado.
+  
+  ## Auth
+  - Bearer `platformJwt`.
+  
+  ## Resposta (Data)
+  - `challenge_id` — copie para `challengeId`.
+  - `verification_type`
+  - `expires_in`
+  - `destination_hint`
+}

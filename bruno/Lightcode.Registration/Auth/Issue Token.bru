@@ -1,4 +1,4 @@
-meta {
+﻿meta {
   name: Issue Token (password)
   type: http
   seq: 1
@@ -30,25 +30,39 @@ vars:pre-request {
 
 docs {
   # Emitir JWT (password grant)
-  
+
   **POST** `/api/auth/token`
-  
-  - **Header obrigatório:** `X-Tenant-Id` — id do tenant (não vai no corpo).
+
+  - **Header obrigatÃ³rio:** `X-Tenant-Id` â€” id do tenant (nÃ£o vai no corpo).
   - **Corpo:** `grant_type=password`, `username` e `password`.
-  
+
   ## Resposta (Data)
-  - `access_token` — colar no ambiente LOCAL na variável `jwt`
-  - `refresh_token` — colar em `refreshToken`
-  - `token_type` — `Bearer`
-  - `expires_in` — segundos
-  
-  O JWT inclui `sub` (id do utilizador em Mongo), `tenantId`, `token_use=tenant_access` e `iss`/`aud` específicos do tenant.
-  
-  O token tenant-scoped é assinado com **RS256** e inclui `kid` no header. APIs cliente devem validar via:
+  Quando 2FA nÃ£o Ã© exigido:
+  - `requires_2fa=false`
+  - `token.access_token` â€” colar no ambiente LOCAL na variÃ¡vel `jwt`
+  - `token.refresh_token` â€” colar em `refreshToken`
+  - `token.token_type` â€” `Bearer`
+  - `token.expires_in` â€” segundos
+  - `challenge=null`
+
+  Quando 2FA Ã© exigido:
+  - `requires_2fa=true`
+  - `token=null`
+  - `challenge.challenge_id` â€” colar em `challengeId`
+  - `challenge.verification_type` â€” `email_code`
+  - `challenge.expires_in`
+  - `challenge.destination_hint`
+
+  Depois confirme em **Auth / Confirm 2FA**.
+
+  O JWT inclui `sub` (id do utilizador em Mongo), `tenantId`, `token_use=tenant_access` e `iss`/`aud` especÃ­ficos do tenant.
+
+  O token tenant-scoped Ã© assinado com **RS256** e inclui `kid` no header. APIs cliente devem validar via:
   - **Discovery / OpenID Configuration**
   - **Discovery / JWKS**
-  
+
   ## Erros comuns
-  - `400` — falta `X-Tenant-Id` ou campos obrigatórios
-  - `401` — tenant inativo ou credenciais inválidas
+  - `400` â€” falta `X-Tenant-Id` ou campos obrigatÃ³rios
+  - `401` â€” tenant inativo ou credenciais invÃ¡lidas
+  - `429` â€” muitas tentativas de login humano
 }

@@ -1,0 +1,45 @@
+meta {
+  name: Platform 2FA Enable Confirm
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/platform-admins/me/2fa/email/enable/confirm
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{platformJwt}}
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{platformJwt}}
+}
+
+body:json {
+  {
+    "challenge_id": "{{challengeId}}",
+    "code": "{{twoFactorCode}}"
+  }
+}
+
+docs {
+  # Confirmar ativação de 2FA do Platform Admin
+  
+  **POST** `/api/platform-admins/me/2fa/email/enable/confirm`
+  
+  Confirma o challenge de ativação e habilita 2FA por e-mail no Platform Admin autenticado.
+  
+  ## Auth
+  - Bearer `platformJwt`.
+  
+  ## Corpo
+  - `challenge_id`
+  - `code`
+  
+  ## Resposta (Data)
+  - `true`
+}

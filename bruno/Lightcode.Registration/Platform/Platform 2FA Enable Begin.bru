@@ -1,0 +1,36 @@
+meta {
+  name: Platform 2FA Enable Begin
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/platform-admins/me/2fa/email/enable/begin
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{platformJwt}}
+}
+
+headers {
+  Authorization: Bearer {{platformJwt}}
+}
+
+docs {
+  # Iniciar ativação de 2FA do Platform Admin
+  
+  **POST** `/api/platform-admins/me/2fa/email/enable/begin`
+  
+  Cria um challenge para ativar 2FA por e-mail no Platform Admin autenticado.
+  
+  ## Auth
+  - Bearer `platformJwt`.
+  
+  ## Resposta (Data)
+  - `challenge_id` — copie para `challengeId`.
+  - `verification_type`
+  - `expires_in`
+  - `destination_hint`
+}

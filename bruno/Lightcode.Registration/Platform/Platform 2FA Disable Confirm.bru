@@ -1,0 +1,45 @@
+meta {
+  name: Platform 2FA Disable Confirm
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/platform-admins/me/2fa/disable/confirm
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{platformJwt}}
+}
+
+headers {
+  Content-Type: application/json
+  Authorization: Bearer {{platformJwt}}
+}
+
+body:json {
+  {
+    "challenge_id": "{{challengeId}}",
+    "code": "{{twoFactorCode}}"
+  }
+}
+
+docs {
+  # Confirmar desativação de 2FA do Platform Admin
+  
+  **POST** `/api/platform-admins/me/2fa/disable/confirm`
+  
+  Confirma o challenge e desativa 2FA do Platform Admin autenticado.
+  
+  ## Auth
+  - Bearer `platformJwt`.
+  
+  ## Corpo
+  - `challenge_id`
+  - `code`
+  
+  ## Resposta (Data)
+  - `true`
+}

@@ -1,0 +1,47 @@
+meta {
+  name: 2FA Enable Confirm
+  type: http
+  seq: 22
+}
+
+post {
+  url: {{baseUrl}}/api/accounts/me/2fa/email/enable/confirm
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "challenge_id": "{{challengeId}}",
+    "code": "{{twoFactorCode}}"
+  }
+}
+
+docs {
+  # Confirmar ativação de 2FA por e-mail
+  
+  **POST** `/api/accounts/me/2fa/email/enable/confirm`
+  
+  Confirma o código enviado no begin e ativa 2FA por e-mail no usuário final autenticado.
+  
+  ## Auth
+  - Bearer `jwt`.
+  
+  ## Corpo
+  - `challenge_id`
+  - `code`
+  
+  ## Resposta (Data)
+  - `true`
+  
+  ## Segurança
+  O código é sensível e não deve ser registrado em logs, screenshots ou arquivos versionados.
+}

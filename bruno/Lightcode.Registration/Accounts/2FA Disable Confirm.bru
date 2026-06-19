@@ -1,0 +1,44 @@
+meta {
+  name: 2FA Disable Confirm
+  type: http
+  seq: 24
+}
+
+post {
+  url: {{baseUrl}}/api/accounts/me/2fa/disable/confirm
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "challenge_id": "{{challengeId}}",
+    "code": "{{twoFactorCode}}"
+  }
+}
+
+docs {
+  # Confirmar desativação de 2FA
+  
+  **POST** `/api/accounts/me/2fa/disable/confirm`
+  
+  Confirma o código enviado no begin e desativa 2FA do usuário final autenticado.
+  
+  ## Auth
+  - Bearer `jwt`.
+  
+  ## Corpo
+  - `challenge_id`
+  - `code`
+  
+  ## Resposta (Data)
+  - `true`
+}

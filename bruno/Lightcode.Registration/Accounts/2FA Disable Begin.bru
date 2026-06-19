@@ -1,0 +1,32 @@
+meta {
+  name: 2FA Disable Begin
+  type: http
+  seq: 23
+}
+
+post {
+  url: {{baseUrl}}/api/accounts/me/2fa/disable/begin
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+docs {
+  # Iniciar desativação de 2FA
+  
+  **POST** `/api/accounts/me/2fa/disable/begin`
+  
+  Cria um challenge para desativar o 2FA do usuário final autenticado.
+  
+  ## Auth
+  - Bearer `jwt`.
+  
+  ## Resposta (Data)
+  - `challenge_id` — copie para `challengeId`.
+  - `verification_type`
+  - `expires_in`
+  - `destination_hint`
+}

@@ -154,17 +154,64 @@ Content-Type: application/json
 }
 ```
 
-Resposta:
+Resposta sem 2FA ativo:
 
 ```json
 {
-  "access_token": "jwt-central",
-  "token_type": "Bearer",
-  "expires_in": 7200
+  "requires_2fa": false,
+  "token": {
+    "access_token": "jwt-central",
+    "token_type": "Bearer",
+    "expires_in": 7200
+  },
+  "challenge": null
 }
 ```
 
 Esse JWT central possui `token_use=platform_admin` e `platformAdminId`. Ele nao possui `tenantId` e serve apenas para endpoints `/api/platform/*`.
+
+Resposta com 2FA ativo:
+
+```json
+{
+  "requires_2fa": true,
+  "token": null,
+  "challenge": {
+    "challenge_id": "challenge-opaco",
+    "verification_type": "email_code",
+    "expires_in": 300,
+    "destination_hint": "f***@gmail.com"
+  }
+}
+```
+
+Quando `requires_2fa=true`, confirme o codigo antes de salvar sessao:
+
+```http
+POST /api/platform-auth/confirm-2fa
+Content-Type: application/json
+```
+
+```json
+{
+  "challenge_id": "challenge-opaco",
+  "code": "123456"
+}
+```
+
+A resposta de sucesso usa o mesmo formato de token:
+
+```json
+{
+  "requires_2fa": false,
+  "token": {
+    "access_token": "jwt-central",
+    "token_type": "Bearer",
+    "expires_in": 7200
+  },
+  "challenge": null
+}
+```
 
 ### 4. Listar tenants do ADM central
 
