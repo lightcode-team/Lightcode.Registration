@@ -10,7 +10,15 @@ public static class UserAccountApiSanitizer
     [
         "password",
         AccountEmailConfirmationFields.SecretHash,
-        AccountEmailConfirmationFields.ExpiresAtUtc
+        AccountEmailConfirmationFields.ExpiresAtUtc,
+        AccountSecurityReservedFields.TwoFactorSettings,
+        "twoFactor",
+        "mfa",
+        "totpSecret",
+        "totpSecretEncrypted",
+        "recoveryCodes",
+        "trustedDevices",
+        "twoFactorEnabled"
     ];
 
     public static JsonElement ToPublicProfile(JsonObject document)

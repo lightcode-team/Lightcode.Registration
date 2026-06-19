@@ -17,7 +17,8 @@ public sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> jwtOptions) : IAcc
         string subjectId,
         string tenantId,
         TokenIssuanceProfile profile,
-        TenantSigningKeyMaterial signingKey)
+        TenantSigningKeyMaterial signingKey,
+        IEnumerable<Claim>? additionalClaims = null)
     {
         var jwt = jwtOptions.Value;
         using var rsa = RSA.Create();
@@ -53,6 +54,9 @@ public sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> jwtOptions) : IAcc
         foreach (var scope in profile.Scopes.Where(s => !string.IsNullOrWhiteSpace(s)))
             claims.Add(new Claim("scope", scope.Trim()));
 
+        if (additionalClaims is not null)
+            claims.AddRange(additionalClaims);
+
         var expiresMinutes = profile.AccessTokenExpirationMinutes > 0
             ? profile.AccessTokenExpirationMinutes
             : jwt.ExpirationMinutes;
@@ -69,7 +73,10 @@ public sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> jwtOptions) : IAcc
         return new IssueTokenResponse(accessToken, "Bearer", expiresMinutes * 60);
     }
 
-    public IssueTokenResponse CreatePlatformAdminAccessToken(string adminId, string email)
+    public IssueTokenResponse CreatePlatformAdminAccessToken(
+        string adminId,
+        string email,
+        IEnumerable<Claim>? additionalClaims = null)
     {
         var jwt = jwtOptions.Value;
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey));
@@ -82,6 +89,9 @@ public sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> jwtOptions) : IAcc
             new("platformAdminId", adminId),
             new("token_use", "platform_admin")
         };
+
+        if (additionalClaims is not null)
+            claims.AddRange(additionalClaims);
 
         var expiresMinutes = jwt.ExpirationMinutes > 0 ? jwt.ExpirationMinutes : 60;
         var token = new JwtSecurityToken(

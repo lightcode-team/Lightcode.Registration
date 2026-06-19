@@ -5,4 +5,5 @@ public sealed record CredentialValidationResult(
     string UserId,
     string Email,
     string Username,
+    string? SchemaId,
     IReadOnlyList<string> Roles);

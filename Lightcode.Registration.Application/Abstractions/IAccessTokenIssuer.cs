@@ -1,5 +1,6 @@
 using Lightcode.Registration.Application.Contracts.Auth;
 using Lightcode.Registration.Application.Security;
+using System.Security.Claims;
 
 namespace Lightcode.Registration.Application.Abstractions;
 
@@ -9,7 +10,11 @@ public interface IAccessTokenIssuer
         string subjectId,
         string tenantId,
         TokenIssuanceProfile profile,
-        TenantSigningKeyMaterial signingKey);
+        TenantSigningKeyMaterial signingKey,
+        IEnumerable<Claim>? additionalClaims = null);
 
-    IssueTokenResponse CreatePlatformAdminAccessToken(string adminId, string email);
+    IssueTokenResponse CreatePlatformAdminAccessToken(
+        string adminId,
+        string email,
+        IEnumerable<Claim>? additionalClaims = null);
 }

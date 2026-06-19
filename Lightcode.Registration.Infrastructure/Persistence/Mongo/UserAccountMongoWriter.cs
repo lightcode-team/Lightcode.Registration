@@ -318,6 +318,23 @@ public sealed class UserAccountMongoWriter(
         return doc["email"].AsString;
     }
 
+    public async Task<string?> TryGetActiveUserIdByEmailAsync(
+        string tenantId,
+        string email,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = await tenantLookup.FindActiveByIdAsync(tenantId, cancellationToken);
+        if (tenant is null)
+            return null;
+
+        var coll = client.GetDatabase(tenant.DatabaseName).GetCollection<BsonDocument>("Users");
+        var doc = await coll.Find(Builders<BsonDocument>.Filter.And(
+            Builders<BsonDocument>.Filter.Eq("email", email),
+            Builders<BsonDocument>.Filter.Eq("status", AccountStatuses.Active))).FirstOrDefaultAsync(cancellationToken);
+
+        return doc?["_id"].ToString();
+    }
+
     public async Task<bool> TrySetPasswordResetTokenAsync(
         string tenantId,
         string email,

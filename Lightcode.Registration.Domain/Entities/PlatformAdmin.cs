@@ -12,9 +12,22 @@ public sealed class PlatformAdmin
 
     public string Status { get; set; } = PlatformAdminStatuses.PendingActivation;
 
+    public PlatformAdminTwoFactorSettings TwoFactorSettings { get; set; } = new();
+
     public DateTime CreatedAtUtc { get; set; }
 
     public DateTime UpdatedAtUtc { get; set; }
+}
+
+public sealed class PlatformAdminTwoFactorSettings
+{
+    public bool Enabled { get; set; }
+
+    public bool EmailEnabled { get; set; }
+
+    public string PreferredMethod { get; set; } = TwoFactorMethods.EmailCode;
+
+    public DateTime? UpdatedAtUtc { get; set; }
 }
 
 public static class PlatformAdminStatuses

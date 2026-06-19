@@ -57,6 +57,11 @@ public interface IUserAccountWriter
         string? username,
         CancellationToken cancellationToken = default);
 
+    Task<string?> TryGetActiveUserIdByEmailAsync(
+        string tenantId,
+        string email,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Grava token de redefinição de senha para utilizador ativo com o email indicado.</summary>
     Task<bool> TrySetPasswordResetTokenAsync(
         string tenantId,

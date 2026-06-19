@@ -13,7 +13,8 @@ public sealed class AccountUpdateAppService(
     IAccountJsonSchemaRepository schemaRepository,
     IJsonSchemaValidationService jsonSchemaValidation,
     IUserAccountWriter userAccountWriter,
-    IPasswordHasher passwordHasher) : IAccountUpdateAppService
+    IPasswordHasher passwordHasher,
+    IRefreshTokenRepository refreshTokenRepository) : IAccountUpdateAppService
 {
     private static readonly HashSet<string> BlockedPatchKeys =
     [
@@ -82,7 +83,7 @@ public sealed class AccountUpdateAppService(
         foreach (var prop in patchObj)
         {
             var key = prop.Key;
-            if (BlockedPatchKeys.Contains(key))
+            if (BlockedPatchKeys.Contains(key) || AccountSecurityReservedFields.Names.Contains(key))
                 continue;
 
             if (key == "createdAtUtc")
@@ -174,6 +175,13 @@ public sealed class AccountUpdateAppService(
         }
 
         await userAccountWriter.ReplaceUserDocumentAsync(tenant.Id, targetUserId.Trim(), merged.ToJsonString(), cancellationToken);
+
+        if (passwordFromPatchPlain)
+            await refreshTokenRepository.RevokeBySubjectAsync(
+                tenant.Id,
+                targetUserId.Trim(),
+                TokenSubjectTypes.User,
+                cancellationToken);
 
         return ServiceResult<UpdateAccountResult>.Ok(new UpdateAccountResult(), 200);
     }

@@ -14,8 +14,30 @@ public interface IPlatformAdminAppService
         ActivatePlatformAdminRequest request,
         CancellationToken cancellationToken = default);
 
-    Task<ServiceResult<IssueTokenResponse>> IssueTokenAsync(
+    Task<ServiceResult<AuthTokenResponse>> IssueTokenAsync(
         PlatformAdminTokenRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<AuthTokenResponse>> ConfirmTwoFactorAsync(
+        ConfirmTwoFactorRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<TwoFactorBeginResponse>> BeginEnableEmailTwoFactorAsync(
+        string adminId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<bool>> ConfirmEnableEmailTwoFactorAsync(
+        string adminId,
+        ConfirmTwoFactorRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<TwoFactorBeginResponse>> BeginDisableTwoFactorAsync(
+        string adminId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<bool>> ConfirmDisableTwoFactorAsync(
+        string adminId,
+        ConfirmTwoFactorRequest request,
         CancellationToken cancellationToken = default);
 
     Task<ServiceResult<IReadOnlyList<PlatformTenantDto>>> ListTenantsAsync(

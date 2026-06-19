@@ -37,6 +37,7 @@ public static class RegistrationApiHostExtensions
         builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
         builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection(SecurityOptions.SectionName));
         builder.Services.Configure<MasterOptions>(builder.Configuration.GetSection(MasterOptions.SectionName));
+        builder.Services.Configure<MasterSmtpOptions>(builder.Configuration.GetSection(MasterSmtpOptions.SectionName));
         builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));
         builder.Services.Configure<TenantDefaultSmtpOptions>(
             builder.Configuration.GetSection(TenantDefaultSmtpOptions.SectionName));
@@ -101,6 +102,7 @@ public static class RegistrationApiHostExtensions
         });
 
         builder.Services.AddHttpContextAccessor();
+        builder.Services.AddSingleton<HumanAuthRateLimiter>();
 
         builder.Services.AddScoped<IJwtTenantTokenValidator, JwtTenantTokenValidator>();
         builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>, TenantJwtBearerOptionsPostConfigure>();

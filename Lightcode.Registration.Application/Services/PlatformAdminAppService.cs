@@ -1,4 +1,5 @@
 using System.Net.Mail;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Lightcode.Registration.Application.Abstractions;
@@ -8,6 +9,7 @@ using Lightcode.Registration.Application.Contracts.Auth;
 using Lightcode.Registration.Application.Contracts.Email;
 using Lightcode.Registration.Application.Contracts.Platform;
 using Lightcode.Registration.Application.Security;
+using Lightcode.Registration.Application.TwoFactor;
 using Lightcode.Registration.Domain.Entities;
 using Microsoft.Extensions.Options;
 
@@ -21,6 +23,8 @@ public sealed class PlatformAdminAppService(
     IAccessTokenIssuer accessTokenIssuer,
     ITenantSigningKeyResolver tenantSigningKeyResolver,
     IEmailEnqueuePublisher emailEnqueuePublisher,
+    ITwoFactorSettingsService twoFactorSettingsService,
+    ITwoFactorChallengeService twoFactorChallengeService,
     IOptions<MasterOptions> masterOptions,
     IOptions<JwtOptions> jwtOptions,
     IOptions<RegistrationOptions> registrationOptions,
@@ -90,23 +94,133 @@ public sealed class PlatformAdminAppService(
             new ActivatePlatformAdminResult(admin.Id, admin.Email));
     }
 
-    public async Task<ServiceResult<IssueTokenResponse>> IssueTokenAsync(
+    public async Task<ServiceResult<AuthTokenResponse>> IssueTokenAsync(
         PlatformAdminTokenRequest request,
         CancellationToken cancellationToken = default)
     {
         var email = NormalizeEmail(request.Email);
         if (email is null || string.IsNullOrWhiteSpace(request.Password))
-            return ServiceResult<IssueTokenResponse>.Fail(400, "Email e password sÃ£o obrigatÃ³rios.");
+            return ServiceResult<AuthTokenResponse>.Fail(400, "Email e password são obrigatórios.");
 
         var admin = await repository.FindAdminByEmailAsync(email, cancellationToken);
         if (admin is null
             || admin.Status != PlatformAdminStatuses.Active
             || string.IsNullOrWhiteSpace(admin.PasswordHash)
             || !passwordHasher.Verify(request.Password, admin.PasswordHash))
-            return ServiceResult<IssueTokenResponse>.Fail(401, "Credenciais invÃ¡lidas.");
+            return ServiceResult<AuthTokenResponse>.Fail(401, "Credenciais inválidas.");
+
+        var settings = await twoFactorSettingsService.GetPlatformAdminSettingsAsync(admin.Id, cancellationToken);
+        if (settings.Enabled && settings.EmailEnabled)
+        {
+            var challenge = await twoFactorChallengeService.CreateEmailChallengeAsync(
+                new TwoFactorChallengeSubject(
+                    TwoFactorSubjectTypes.PlatformAdmin,
+                    admin.Id,
+                    null,
+                    admin.Email,
+                    admin.Email),
+                TwoFactorChallengePurposes.Login,
+                cancellationToken);
+
+            return ServiceResult<AuthTokenResponse>.Ok(AuthTokenResponse.TwoFactorRequired(challenge));
+        }
 
         var token = accessTokenIssuer.CreatePlatformAdminAccessToken(admin.Id, admin.Email);
-        return ServiceResult<IssueTokenResponse>.Ok(token);
+        return ServiceResult<AuthTokenResponse>.Ok(AuthTokenResponse.Issued(token));
+    }
+
+    public async Task<ServiceResult<AuthTokenResponse>> ConfirmTwoFactorAsync(
+        ConfirmTwoFactorRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var verify = await twoFactorChallengeService.VerifyAsync(
+            request.ChallengeId ?? string.Empty,
+            request.Code ?? string.Empty,
+            tenantId: null,
+            TwoFactorSubjectTypes.PlatformAdmin,
+            TwoFactorChallengePurposes.Login,
+            cancellationToken);
+
+        if (!verify.IsSuccess)
+            return ServiceResult<AuthTokenResponse>.Fail(verify.StatusCode, verify.Errors);
+
+        var challenge = verify.Value!;
+        var admin = await RequireActiveAdminAsync(challenge.SubjectId, cancellationToken);
+        if (admin is null)
+            return ServiceResult<AuthTokenResponse>.Fail(401, "Administrador inválido ou inativo.");
+
+        var token = accessTokenIssuer.CreatePlatformAdminAccessToken(
+            admin.Id,
+            admin.Email,
+            CreateMfaClaims(challenge.Method));
+
+        return ServiceResult<AuthTokenResponse>.Ok(AuthTokenResponse.Issued(token));
+    }
+
+    public async Task<ServiceResult<TwoFactorBeginResponse>> BeginEnableEmailTwoFactorAsync(
+        string adminId,
+        CancellationToken cancellationToken = default)
+    {
+        var admin = await RequireActiveAdminAsync(adminId, cancellationToken);
+        if (admin is null)
+            return ServiceResult<TwoFactorBeginResponse>.Fail(401, "Administrador inválido ou inativo.");
+
+        var challenge = await CreatePlatformAdminChallengeAsync(
+            admin,
+            TwoFactorChallengePurposes.EnableTwoFactor,
+            cancellationToken);
+
+        return ServiceResult<TwoFactorBeginResponse>.Ok(ToBeginResponse(challenge));
+    }
+
+    public async Task<ServiceResult<bool>> ConfirmEnableEmailTwoFactorAsync(
+        string adminId,
+        ConfirmTwoFactorRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var verify = await VerifyPlatformAdminChallengeAsync(
+            adminId,
+            request,
+            TwoFactorChallengePurposes.EnableTwoFactor,
+            cancellationToken);
+        if (!verify.IsSuccess)
+            return ServiceResult<bool>.Fail(verify.StatusCode, verify.Errors);
+
+        await twoFactorSettingsService.SetPlatformAdminEmailTwoFactorAsync(adminId.Trim(), true, cancellationToken);
+        return ServiceResult<bool>.Ok(true);
+    }
+
+    public async Task<ServiceResult<TwoFactorBeginResponse>> BeginDisableTwoFactorAsync(
+        string adminId,
+        CancellationToken cancellationToken = default)
+    {
+        var admin = await RequireActiveAdminAsync(adminId, cancellationToken);
+        if (admin is null)
+            return ServiceResult<TwoFactorBeginResponse>.Fail(401, "Administrador inválido ou inativo.");
+
+        var challenge = await CreatePlatformAdminChallengeAsync(
+            admin,
+            TwoFactorChallengePurposes.DisableTwoFactor,
+            cancellationToken);
+
+        return ServiceResult<TwoFactorBeginResponse>.Ok(ToBeginResponse(challenge));
+    }
+
+    public async Task<ServiceResult<bool>> ConfirmDisableTwoFactorAsync(
+        string adminId,
+        ConfirmTwoFactorRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var verify = await VerifyPlatformAdminChallengeAsync(
+            adminId,
+            request,
+            TwoFactorChallengePurposes.DisableTwoFactor,
+            cancellationToken);
+        if (!verify.IsSuccess)
+            return ServiceResult<bool>.Fail(verify.StatusCode, verify.Errors);
+
+        await twoFactorSettingsService.SetPlatformAdminEmailTwoFactorAsync(adminId.Trim(), false, cancellationToken);
+        return ServiceResult<bool>.Ok(true);
     }
 
     public async Task<ServiceResult<IReadOnlyList<PlatformTenantDto>>> ListTenantsAsync(
@@ -284,6 +398,60 @@ public sealed class PlatformAdminAppService(
         var admin = await repository.GetAdminByIdAsync(adminId.Trim(), cancellationToken);
         return admin?.Status == PlatformAdminStatuses.Active ? admin : null;
     }
+
+    private async Task<TwoFactorChallengeDto> CreatePlatformAdminChallengeAsync(
+        PlatformAdmin admin,
+        string purpose,
+        CancellationToken cancellationToken) =>
+        await twoFactorChallengeService.CreateEmailChallengeAsync(
+            new TwoFactorChallengeSubject(
+                TwoFactorSubjectTypes.PlatformAdmin,
+                admin.Id,
+                null,
+                admin.Email,
+                admin.Email),
+            purpose,
+            cancellationToken);
+
+    private async Task<ServiceResult<bool>> VerifyPlatformAdminChallengeAsync(
+        string adminId,
+        ConfirmTwoFactorRequest request,
+        string purpose,
+        CancellationToken cancellationToken)
+    {
+        var admin = await RequireActiveAdminAsync(adminId, cancellationToken);
+        if (admin is null)
+            return ServiceResult<bool>.Fail(401, "Administrador inválido ou inativo.");
+
+        var verify = await twoFactorChallengeService.VerifyAsync(
+            request.ChallengeId ?? string.Empty,
+            request.Code ?? string.Empty,
+            tenantId: null,
+            TwoFactorSubjectTypes.PlatformAdmin,
+            purpose,
+            cancellationToken);
+        if (!verify.IsSuccess)
+            return ServiceResult<bool>.Fail(verify.StatusCode, verify.Errors);
+
+        return string.Equals(verify.Value!.SubjectId, admin.Id, StringComparison.Ordinal)
+            ? ServiceResult<bool>.Ok(true)
+            : ServiceResult<bool>.Fail(403, "Challenge não pertence ao administrador autenticado.");
+    }
+
+    private static TwoFactorBeginResponse ToBeginResponse(TwoFactorChallengeDto challenge) =>
+        new(
+            challenge.ChallengeId,
+            challenge.VerificationType,
+            challenge.ExpiresInSeconds,
+            challenge.DestinationHint);
+
+    private static IReadOnlyList<Claim> CreateMfaClaims(string method) =>
+    [
+        new("amr", "pwd"),
+        new("amr", "mfa"),
+        new("auth_time", DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString()),
+        new("mfa_method", method)
+    ];
 
     private string? BuildActivationUrl(string token)
     {

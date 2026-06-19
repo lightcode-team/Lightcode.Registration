@@ -1,7 +1,9 @@
 using Lightcode.Registration.Api;
 using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application.Contracts.Auth;
+using Lightcode.Registration.Application.Security;
 using Lightcode.Registration.Http;
+using Lightcode.Registration.AspNetCore.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Lightcode.Registration.Models;
@@ -10,7 +12,8 @@ namespace Lightcode.Registration.Controllers;
 
 public sealed class AuthController(
     IAuthenticationAppService authenticationAppService,
-    IFrontConfigAppService frontConfigAppService) : Controller
+    IFrontConfigAppService frontConfigAppService,
+    HumanAuthRateLimiter rateLimiter) : Controller
 {
     [HttpGet("/auth/login")]
     [AllowAnonymous]
@@ -53,6 +56,10 @@ public sealed class AuthController(
         if (tenantId is null)
             return ApiResponse.Error(400, $"Cabeçalho obrigatório: {TenantHttpHeaders.TenantId}.");
 
+        if (IsPasswordGrant(body)
+            && rateLimiter.LimitPasswordGrant(HttpContext, tenantId, body.Username) is { } limited)
+            return limited;
+
         var result = await authenticationAppService.IssueTokenAsync(body, tenantId, cancellationToken);
         return result.ToApiResponse();
     }
@@ -63,5 +70,32 @@ public sealed class AuthController(
             return tenantId.Trim();
 
         return TenantHttpHeaders.TryGetTenantId(Request);
+    }
+
+    [HttpPost("confirm-2fa")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ConfirmTwoFactor([FromBody] ConfirmTwoFactorRequest body, CancellationToken cancellationToken)
+    {
+        var tenantId = TenantHttpHeaders.TryGetTenantId(Request);
+        if (tenantId is null)
+            return ApiResponse.Error(400, $"Cabeçalho obrigatório: {TenantHttpHeaders.TenantId}.");
+
+        if (rateLimiter.LimitTwoFactorConfirmation(
+                HttpContext,
+                "auth_confirm_2fa",
+                tenantId,
+                body.ChallengeId) is { } limited)
+            return limited;
+
+        var result = await authenticationAppService.ConfirmTwoFactorAsync(body, tenantId, cancellationToken);
+        return result.ToApiResponse();
+    }
+
+    private static bool IsPasswordGrant(TokenRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.GrantType))
+            return string.Equals(request.GrantType.Trim(), TokenGrantTypes.Password, StringComparison.OrdinalIgnoreCase);
+
+        return !string.IsNullOrWhiteSpace(request.Username) || !string.IsNullOrWhiteSpace(request.Password);
     }
 }

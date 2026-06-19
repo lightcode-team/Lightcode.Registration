@@ -3,6 +3,7 @@ using Lightcode.Registration.Application.Accounts;
 using Lightcode.Registration.Application.Common;
 using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Contracts.Email;
+using Lightcode.Registration.Application.Security;
 using Microsoft.Extensions.Options;
 
 namespace Lightcode.Registration.Application.Services;
@@ -13,6 +14,7 @@ public sealed class AccountPasswordResetAppService(
     ISecureTokenGenerator tokenGenerator,
     IPasswordHasher passwordHasher,
     IEmailEnqueuePublisher emailEnqueuePublisher,
+    IRefreshTokenRepository refreshTokenRepository,
     IOptions<RegistrationOptions> registrationOptions) : IAccountPasswordResetAppService
 {
     private const string SuccessMessage =
@@ -102,6 +104,13 @@ public sealed class AccountPasswordResetAppService(
 
         if (!reset)
             return ServiceResult<object>.Fail(400, "Link inválido, expirado ou conta inexistente.");
+
+        var userId = await userAccountWriter.TryGetActiveUserIdByEmailAsync(
+            tenant.Id,
+            email.Trim().ToLowerInvariant(),
+            cancellationToken);
+        if (!string.IsNullOrWhiteSpace(userId))
+            await refreshTokenRepository.RevokeBySubjectAsync(tenant.Id, userId, TokenSubjectTypes.User, cancellationToken);
 
         return ServiceResult<object>.Ok(new { }, 200, "Senha redefinida com sucesso.");
     }

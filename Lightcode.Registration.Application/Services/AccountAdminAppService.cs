@@ -63,6 +63,7 @@ public sealed class AccountAdminAppService(
         obj.Remove("confirmationReturnUrl");
         obj.Remove("scope");
         obj.Remove("role");
+        AccountSecurityReservedFields.RemoveFrom(obj);
 
         var validationJson = obj.ToJsonString();
         var validationErrors = jsonSchemaValidation.Validate(schemaEntity.SchemaJson, validationJson);

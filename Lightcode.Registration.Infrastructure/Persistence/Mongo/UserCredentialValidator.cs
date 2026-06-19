@@ -51,9 +51,12 @@ public sealed class UserCredentialValidator(
         var userId = doc["_id"].ToString()!;
         var email = doc.Contains("email") && doc["email"].IsString ? doc["email"].AsString : string.Empty;
         var usernameValue = doc.Contains("username") && doc["username"].IsString ? doc["username"].AsString : string.Empty;
+        var schemaId = doc.Contains(AccountUserFields.SchemaId) && doc[AccountUserFields.SchemaId].IsString
+            ? doc[AccountUserFields.SchemaId].AsString
+            : null;
         var roles = ReadRolesFromUserDocument(doc);
 
-        return CredentialValidationOutcome.Succeeded(new CredentialValidationResult(userId, email, usernameValue, roles));
+        return CredentialValidationOutcome.Succeeded(new CredentialValidationResult(userId, email, usernameValue, schemaId, roles));
     }
 
     private static IReadOnlyList<string> ReadRolesFromUserDocument(BsonDocument doc)

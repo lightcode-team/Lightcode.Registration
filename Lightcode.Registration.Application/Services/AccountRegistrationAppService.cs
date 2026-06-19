@@ -56,6 +56,7 @@ public sealed class AccountRegistrationAppService(
         obj.Remove("confirmationReturnUrl");
         obj.Remove("role");
         obj.Remove("roles");
+        AccountSecurityReservedFields.RemoveFrom(obj);
 
         var cleanedJson = obj.ToJsonString();
         var errors = jsonSchemaValidation.Validate(

@@ -3,6 +3,7 @@ using Lightcode.Registration.Application.Accounts;
 using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Registration;
 using Lightcode.Registration.Application.Security;
+using Lightcode.Registration.Application.TwoFactor;
 using Lightcode.Registration.Domain.Entities;
 using Lightcode.Registration.Infrastructure.Security;
 using Microsoft.Extensions.Options;
@@ -113,6 +114,7 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
         await SeedTenantOnboardingEmailTemplateAsync(tenant, now, cancellationToken);
         await SeedPlatformAdminInviteEmailTemplateAsync(tenant, now, cancellationToken);
         await SeedEmailConfirmationTemplatesAsync(tenant, now, cancellationToken);
+        await SeedLoginTwoFactorEmailTemplateAsync(tenant, now, cancellationToken);
         await SeedPasswordResetEmailTemplateAsync(tenant, now, cancellationToken);
 
         var clientId = $"client_{tenantId}";
@@ -365,6 +367,37 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
                 {{resetLink}}
 
                 O link expira em 60 minutos. Se não fez este pedido, ignore este email.
+                """,
+            CreatedAtUtc = now,
+            UpdatedAtUtc = now
+        };
+
+        await _emailTemplates.InsertAsync(template, cancellationToken);
+    }
+
+    private async Task SeedLoginTwoFactorEmailTemplateAsync(
+        Tenant tenant,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var template = new EmailTemplate
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            TenantId = tenant.Id,
+            Key = EmailCodeTwoFactorMethod.TemplateKey,
+            DisplayName = "Código de login 2FA",
+            Subject = "Código de segurança — {{username}}",
+            HtmlBody = """
+                <p>Olá <strong>{{username}}</strong>,</p>
+                <p>O seu código de segurança é: <strong>{{code}}</strong></p>
+                <p>O código expira em 5 minutos.</p>
+                """,
+            TextBody = """
+                Olá {{username}},
+
+                O seu código de segurança é: {{code}}
+
+                O código expira em 5 minutos.
                 """,
             CreatedAtUtc = now,
             UpdatedAtUtc = now

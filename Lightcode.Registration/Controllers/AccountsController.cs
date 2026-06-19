@@ -3,8 +3,10 @@ using System.Text.Json;
 using Lightcode.Registration.Api;
 using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application.Contracts.Accounts;
+using Lightcode.Registration.Application.Contracts.Auth;
 using Lightcode.Registration.Application.Security;
 using Lightcode.Registration.Http;
+using Lightcode.Registration.AspNetCore.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +20,9 @@ public sealed class AccountsController(
     IAccountUpdateAppService accountUpdateAppService,
     IAccountCompleteRegistrationAppService accountCompleteRegistrationAppService,
     IAccountEmailConfirmationAppService accountEmailConfirmationAppService,
-    IAccountPasswordResetAppService accountPasswordResetAppService) : ControllerBase
+    IAccountPasswordResetAppService accountPasswordResetAppService,
+    IAccountTwoFactorAppService accountTwoFactorAppService,
+    HumanAuthRateLimiter rateLimiter) : ControllerBase
 {
     /// <summary>
     /// Registo público de conta (salvamento parcial). Exige <c>schemaId</c>, <c>email</c>, <c>username</c> e <c>password</c>.
@@ -186,6 +190,9 @@ public sealed class AccountsController(
         if (tenantId is null)
             return ApiResponse.Error(400, $"Tenant em falta: envie o cabeçalho {TenantHttpHeaders.TenantId}.");
 
+        if (rateLimiter.LimitAccountRecovery(HttpContext, tenantId, body.Email) is { } limited)
+            return limited;
+
         var result = await accountEmailConfirmationAppService.ConfirmByCodeAsync(
             tenantId,
             body.Email,
@@ -207,6 +214,9 @@ public sealed class AccountsController(
         if (string.IsNullOrWhiteSpace(tenantId))
             return ApiResponse.Error(400, "tenantId é obrigatório na query.");
 
+        if (rateLimiter.LimitAccountRecovery(HttpContext, tenantId, email) is { } limited)
+            return limited;
+
         var result = await accountEmailConfirmationAppService.ConfirmByLinkAsync(
             tenantId.Trim(),
             email,
@@ -227,6 +237,9 @@ public sealed class AccountsController(
         if (tenantId is null)
             return ApiResponse.Error(400, $"Tenant em falta: envie o cabeçalho {TenantHttpHeaders.TenantId}.");
 
+        if (rateLimiter.LimitAccountRecovery(HttpContext, tenantId, body.Email ?? body.Username) is { } limited)
+            return limited;
+
         var result = await accountPasswordResetAppService.ForgotPasswordAsync(
             tenantId,
             body.Email,
@@ -234,5 +247,108 @@ public sealed class AccountsController(
             cancellationToken);
 
         return result.ToApiResponse();
+    }
+
+    [HttpPost("~/api/accounts/me/2fa/email/enable/begin")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = "HasTenant")]
+    public async Task<IActionResult> BeginEnableEmailTwoFactor(CancellationToken cancellationToken)
+    {
+        var context = ResolveCurrentTenantUser();
+        if (context.Result is not null)
+            return context.Result;
+
+        if (rateLimiter.LimitTwoFactorManagement(HttpContext, context.TenantId, context.UserId) is { } limited)
+            return limited;
+
+        var result = await accountTwoFactorAppService.BeginEnableEmailAsync(
+            context.TenantId!,
+            context.UserId!,
+            cancellationToken);
+
+        return result.ToApiResponse();
+    }
+
+    [HttpPost("~/api/accounts/me/2fa/email/enable/confirm")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = "HasTenant")]
+    public async Task<IActionResult> ConfirmEnableEmailTwoFactor(
+        [FromBody] ConfirmTwoFactorRequest body,
+        CancellationToken cancellationToken)
+    {
+        var context = ResolveCurrentTenantUser();
+        if (context.Result is not null)
+            return context.Result;
+
+        if (rateLimiter.LimitTwoFactorConfirmation(
+                HttpContext,
+                "two_factor_management_confirm",
+                context.TenantId,
+                body.ChallengeId) is { } limited)
+            return limited;
+
+        var result = await accountTwoFactorAppService.ConfirmEnableEmailAsync(
+            context.TenantId!,
+            context.UserId!,
+            body,
+            cancellationToken);
+
+        return result.ToApiResponse();
+    }
+
+    [HttpPost("~/api/accounts/me/2fa/disable/begin")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = "HasTenant")]
+    public async Task<IActionResult> BeginDisableTwoFactor(CancellationToken cancellationToken)
+    {
+        var context = ResolveCurrentTenantUser();
+        if (context.Result is not null)
+            return context.Result;
+
+        if (rateLimiter.LimitTwoFactorManagement(HttpContext, context.TenantId, context.UserId) is { } limited)
+            return limited;
+
+        var result = await accountTwoFactorAppService.BeginDisableAsync(
+            context.TenantId!,
+            context.UserId!,
+            cancellationToken);
+
+        return result.ToApiResponse();
+    }
+
+    [HttpPost("~/api/accounts/me/2fa/disable/confirm")]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme, Policy = "HasTenant")]
+    public async Task<IActionResult> ConfirmDisableTwoFactor(
+        [FromBody] ConfirmTwoFactorRequest body,
+        CancellationToken cancellationToken)
+    {
+        var context = ResolveCurrentTenantUser();
+        if (context.Result is not null)
+            return context.Result;
+
+        if (rateLimiter.LimitTwoFactorConfirmation(
+                HttpContext,
+                "two_factor_management_confirm",
+                context.TenantId,
+                body.ChallengeId) is { } limited)
+            return limited;
+
+        var result = await accountTwoFactorAppService.ConfirmDisableAsync(
+            context.TenantId!,
+            context.UserId!,
+            body,
+            cancellationToken);
+
+        return result.ToApiResponse();
+    }
+
+    private (string? TenantId, string? UserId, IActionResult? Result) ResolveCurrentTenantUser()
+    {
+        var tenantId = User.FindFirst("tenantId")?.Value;
+        if (string.IsNullOrWhiteSpace(tenantId))
+            return (null, null, ApiResponse.Error(400, "tenantId em falta no token."));
+
+        var userId = User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+        if (string.IsNullOrWhiteSpace(userId))
+            return (null, null, ApiResponse.Error(401, "Identificador de utilizador em falta no token."));
+
+        return (tenantId, userId, null);
     }
 }

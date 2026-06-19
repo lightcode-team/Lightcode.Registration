@@ -24,6 +24,8 @@ public sealed class AccountJsonSchemaConfig
     [JsonPropertyName("2FA")]
     public EmailTwoFactorConfig? TwoFactor { get; set; }
 
+    public AccountAuthConfig? Auth { get; set; }
+
     public static AccountJsonSchemaConfig Parse(string? configJson)
     {
         if (string.IsNullOrWhiteSpace(configJson))
@@ -74,6 +76,10 @@ public sealed class AccountJsonSchemaConfig
             return false;
         }
 
+        if (config.Auth?.TwoFactor is { } authTwoFactor
+            && !authTwoFactor.TryValidate(out error))
+            return false;
+
         return true;
     }
 }
@@ -99,6 +105,87 @@ public enum EmailTwoFactorType
 {
     Code,
     Link
+}
+
+public sealed class AccountAuthConfig
+{
+    public AccountAuthTwoFactorConfig? TwoFactor { get; set; }
+}
+
+public sealed class AccountAuthTwoFactorConfig
+{
+    private static readonly HashSet<string> SupportedModes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        AccountAuthTwoFactorModes.Disabled,
+        AccountAuthTwoFactorModes.Optional,
+        AccountAuthTwoFactorModes.Required
+    };
+
+    private static readonly HashSet<string> SupportedMethods = new(StringComparer.OrdinalIgnoreCase)
+    {
+        AccountAuthTwoFactorMethods.EmailCode,
+        AccountAuthTwoFactorMethods.Totp
+    };
+
+    public string Mode { get; set; } = AccountAuthTwoFactorModes.Disabled;
+
+    public IReadOnlyList<string> AllowedMethods { get; set; } = [AccountAuthTwoFactorMethods.EmailCode];
+
+    public string DefaultMethod { get; set; } = AccountAuthTwoFactorMethods.EmailCode;
+
+    public bool TryValidate(out string? error)
+    {
+        error = null;
+        var mode = string.IsNullOrWhiteSpace(Mode) ? AccountAuthTwoFactorModes.Disabled : Mode.Trim();
+        if (!SupportedModes.Contains(mode))
+        {
+            error = "auth.twoFactor.mode deve ser disabled, optional ou required.";
+            return false;
+        }
+
+        var methods = AllowedMethods?
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? [];
+
+        if (methods.Count == 0)
+        {
+            error = "auth.twoFactor.allowedMethods deve conter pelo menos um método.";
+            return false;
+        }
+
+        if (methods.Any(x => !SupportedMethods.Contains(x)))
+        {
+            error = "auth.twoFactor.allowedMethods suporta apenas email_code ou totp.";
+            return false;
+        }
+
+        var defaultMethod = string.IsNullOrWhiteSpace(DefaultMethod)
+            ? AccountAuthTwoFactorMethods.EmailCode
+            : DefaultMethod.Trim();
+
+        if (!SupportedMethods.Contains(defaultMethod) || !methods.Contains(defaultMethod, StringComparer.OrdinalIgnoreCase))
+        {
+            error = "auth.twoFactor.defaultMethod deve existir em allowedMethods.";
+            return false;
+        }
+
+        return true;
+    }
+}
+
+public static class AccountAuthTwoFactorModes
+{
+    public const string Disabled = "disabled";
+    public const string Optional = "optional";
+    public const string Required = "required";
+}
+
+public static class AccountAuthTwoFactorMethods
+{
+    public const string EmailCode = "email_code";
+    public const string Totp = "totp";
 }
 
 internal sealed class FlexibleBoolJsonConverter : JsonConverter<bool>

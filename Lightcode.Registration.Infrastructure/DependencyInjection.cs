@@ -1,6 +1,7 @@
 using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application.Accounts;
 using Lightcode.Registration.Application.Services;
+using Lightcode.Registration.Application.TwoFactor;
 using Lightcode.Registration.Infrastructure.Email;
 using Lightcode.Registration.Infrastructure.Hosting;
 using Lightcode.Registration.Infrastructure.Persistence.Mongo;
@@ -37,6 +38,13 @@ public static class DependencyInjection
         services.AddScoped<IOAuthClientRepository, MongoOAuthClientRepository>();
         services.AddScoped<IOAuthClientAppService, OAuthClientAppService>();
         services.AddScoped<IRefreshTokenRepository, MongoRefreshTokenRepository>();
+        services.AddScoped<ITwoFactorChallengeRepository, MongoTwoFactorChallengeRepository>();
+        services.AddScoped<ITwoFactorSettingsService, MongoUserTwoFactorSettingsService>();
+        services.AddScoped<ITwoFactorChallengeService, TwoFactorChallengeService>();
+        services.AddScoped<ITwoFactorMethod, EmailCodeTwoFactorMethod>();
+        services.AddScoped<ITwoFactorMethod, TotpTwoFactorMethod>();
+        services.AddScoped<ITwoFactorMethodProvider, TwoFactorMethodProvider>();
+        services.AddScoped<IPlatformSystemEmailSender, SmtpPlatformSystemEmailSender>();
 
         services.AddScoped<ITenantProvisioner, MongoTenantProvisioner>();
         services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();
@@ -58,6 +66,7 @@ public static class DependencyInjection
         services.AddScoped<IAccountEmailConfirmationAppService, AccountEmailConfirmationAppService>();
         services.AddScoped<IAccountPasswordResetAppService, AccountPasswordResetAppService>();
         services.AddScoped<IFrontConfigAppService, FrontConfigAppService>();
+        services.AddScoped<IAccountTwoFactorAppService, AccountTwoFactorAppService>();
 
         services.AddScoped<ITenantSmtpSettingsRepository, MongoTenantSmtpSettingsRepository>();
         services.AddScoped<IEmailTemplateRepository, MongoEmailTemplateRepository>();

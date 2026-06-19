@@ -22,6 +22,7 @@ public static class MongoSerialization
             RegisterTenantSmtpSettings();
             RegisterOAuthClient();
             RegisterRefreshToken();
+            RegisterTwoFactorChallenge();
             RegisterFrontConfig();
             _registered = true;
         }
@@ -186,6 +187,19 @@ public static class MongoSerialization
             cm.GetMemberMap(x => x.SubmitButton).SetElementName("submit_button");
             cm.GetMemberMap(x => x.SubmittingButton).SetElementName("submitting_button");
             cm.GetMemberMap(x => x.AuthenticationNotIntegrated).SetElementName("authentication_not_integrated");
+        });
+    }
+
+    private static void RegisterTwoFactorChallenge()
+    {
+        if (BsonClassMap.IsClassMapRegistered(typeof(TwoFactorChallenge)))
+            return;
+
+        BsonClassMap.RegisterClassMap<TwoFactorChallenge>(cm =>
+        {
+            cm.AutoMap();
+            cm.SetIgnoreExtraElements(true);
+            cm.MapIdProperty(x => x.Id);
         });
     }
 }

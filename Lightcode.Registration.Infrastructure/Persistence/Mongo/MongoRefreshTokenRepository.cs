@@ -91,6 +91,28 @@ public sealed class MongoRefreshTokenRepository(
         return result.ModifiedCount == 1;
     }
 
+    public async Task RevokeBySubjectAsync(
+        string tenantId,
+        string subjectId,
+        string subjectType,
+        CancellationToken cancellationToken = default)
+    {
+        var tenant = await tenantLookup.FindActiveByIdAsync(tenantId, cancellationToken);
+        if (tenant is null)
+            return;
+
+        var coll = GetCollection(tenant.DatabaseName);
+        var filter = Builders<RefreshToken>.Filter.And(
+            Builders<RefreshToken>.Filter.Eq(x => x.SubjectId, subjectId),
+            Builders<RefreshToken>.Filter.Eq(x => x.SubjectType, subjectType),
+            Builders<RefreshToken>.Filter.Eq(x => x.RevokedAtUtc, null));
+        var update = Builders<RefreshToken>.Update.Set(x => x.RevokedAtUtc, DateTime.UtcNow);
+        await coll.UpdateManyAsync(
+            filter,
+            update,
+            cancellationToken: cancellationToken);
+    }
+
     private IMongoCollection<RefreshToken> GetCollection(string databaseName) =>
         client.GetDatabase(databaseName).GetCollection<RefreshToken>(RefreshToken.CollectionName);
 }

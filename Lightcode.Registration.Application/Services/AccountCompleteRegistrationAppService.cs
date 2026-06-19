@@ -52,6 +52,8 @@ public sealed class AccountCompleteRegistrationAppService(
         if (existingRoot is not JsonObject userDoc)
             return ServiceResult<RegisterAccountResult>.Fail(400, "Documento de utilizador inválido.");
 
+        AccountSecurityReservedFields.RemoveFrom(userDoc);
+
         var currentStatus = userDoc["status"] is JsonValue statusNode && statusNode.TryGetValue<string>(out var statusValue)
             ? statusValue
             : AccountStatuses.Active;

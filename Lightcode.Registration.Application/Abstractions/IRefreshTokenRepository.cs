@@ -20,4 +20,10 @@ public interface IRefreshTokenRepository
         CancellationToken cancellationToken = default);
 
     Task<bool> TryIncrementUseCountAsync(string tenantId, string id, CancellationToken cancellationToken = default);
+
+    Task RevokeBySubjectAsync(
+        string tenantId,
+        string subjectId,
+        string subjectType,
+        CancellationToken cancellationToken = default);
 }
