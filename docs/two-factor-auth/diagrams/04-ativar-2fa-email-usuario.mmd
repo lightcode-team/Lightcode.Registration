@@ -1,0 +1,42 @@
+%%{init: {"theme":"base","securityLevel":"strict","deterministicIds":true,"deterministicIDSeed":"liguthub-docs","themeVariables":{"fontFamily":"Inter, ui-sans-serif, system-ui","fontSize":"15px","background":"#ffffff","primaryColor":"#f8fafc","primaryTextColor":"#0f172a","primaryBorderColor":"#cbd5e1","secondaryColor":"#eff6ff","secondaryTextColor":"#1e3a8a","secondaryBorderColor":"#93c5fd","tertiaryColor":"#ecfdf5","tertiaryTextColor":"#065f46","tertiaryBorderColor":"#86efac","lineColor":"#64748b","textColor":"#0f172a"}}}%%
+sequenceDiagram
+    autonumber
+    participant Usuario as Usuário autenticado
+    participant API as Lightcode Registration API
+    participant RL as HumanAuthRateLimiter
+    participant Auth as Auth Context
+    participant Policy as AuthSchemaTwoFactorPolicy
+    participant MFA as TwoFactorChallengeService
+    participant Settings as TwoFactorSettingsService
+    participant Email as Email API / fila
+    participant RT as RefreshTokenRepository
+
+    Usuario->>API: POST /api/accounts/me/2fa/email/enable/begin
+    API->>RL: Limitar por IP, tenant e subject
+    RL-->>API: Permitido
+    API->>Auth: Validar JWT, tenant, usuário e autenticação recente
+    Auth-->>API: Usuário autorizado
+    API->>Policy: Resolver auth.twoFactor.mode pelo schema do usuário
+    Policy-->>API: mode=optional ou mode=required
+    API->>MFA: Criar challenge purpose=enable_2fa method=email_code
+    MFA->>MFA: Gerar código, salvar HMAC/hash, expiração e tentativas
+    MFA->>MFA: Invalidar challenge pendente anterior do mesmo purpose
+    MFA->>Email: Enviar código de ativação
+    API-->>Usuario: challenge_id, verification_type, expires_in
+
+    Usuario->>API: POST /api/accounts/me/2fa/email/enable/confirm
+    API->>RL: Limitar por IP, tenant e challenge_id
+    RL-->>API: Permitido
+    API->>Auth: Validar JWT, tenant e usuário
+    Auth-->>API: Usuário autorizado
+    API->>MFA: Validar challenge do mesmo usuário, tenant e purpose=enable_2fa
+    MFA->>MFA: Consumir challenge de forma atômica
+    MFA-->>API: Challenge verificado
+    API->>Settings: Persistir EmailEnabled=true e Enabled=true
+    API->>RT: Revogar refresh tokens existentes do usuário
+    API-->>Usuario: 2FA ativado com sucesso
+
+    Note over Policy: mode=disabled bloqueia ativação individual. mode=optional permite opt-in pelo usuário.
+    Note over API,Settings: O begin nunca persiste Enabled=true; apenas o confirm altera settings.
+    Note over API: Campos internos de 2FA não devem ser alterados por update genérico de conta.
+    Note over RT: Sessões antigas são revogadas porque a postura de segurança mudou.

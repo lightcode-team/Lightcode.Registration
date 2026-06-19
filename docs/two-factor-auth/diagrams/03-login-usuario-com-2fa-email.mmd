@@ -1,0 +1,50 @@
+%%{init: {"theme":"base","securityLevel":"strict","deterministicIds":true,"deterministicIDSeed":"liguthub-docs","themeVariables":{"fontFamily":"Inter, ui-sans-serif, system-ui","fontSize":"15px","background":"#ffffff","primaryColor":"#f8fafc","primaryTextColor":"#0f172a","primaryBorderColor":"#cbd5e1","secondaryColor":"#eff6ff","secondaryTextColor":"#1e3a8a","secondaryBorderColor":"#93c5fd","tertiaryColor":"#ecfdf5","tertiaryTextColor":"#065f46","tertiaryBorderColor":"#86efac","lineColor":"#64748b","textColor":"#0f172a"}}}%%
+sequenceDiagram
+    autonumber
+    participant App as Aplicação terceira
+    participant API as Lightcode Registration API
+    participant RL as HumanAuthRateLimiter
+    participant Tenant as TenantLookup
+    participant Cred as UserCredentialValidator
+    participant Policy as AuthSchemaTwoFactorPolicy
+    participant Settings as TwoFactorSettingsService
+    participant MFA as TwoFactorChallengeService
+    participant Email as EmailCodeTwoFactorMethod
+    participant Mail as Email API / fila
+    participant JWT as AccessTokenIssuer
+    participant RT as RefreshTokenRepository
+
+    App->>API: POST /api/auth/token grant_type=password
+    API->>RL: Limitar por IP, tenant e username/e-mail
+    RL-->>API: Permitido
+    API->>Tenant: Validar X-Tenant-Id e tenant ativo
+    Tenant-->>API: Tenant válido
+    API->>Cred: Validar username, password, status e e-mail confirmado
+    Cred-->>API: Usuário válido
+    API->>Policy: Resolver auth.twoFactor.mode pelo schema do usuário
+    Policy-->>API: mode=required ou mode=optional
+    API->>Settings: Consultar configuração individual do usuário
+    Settings-->>API: 2FA ativo ou obrigatório por política
+    API->>MFA: Criar challenge purpose=login method=email_code
+    MFA->>MFA: Invalidar challenges pendentes anteriores
+    MFA->>MFA: Gerar código, salvar HMAC/hash, expiração e tentativas
+    MFA->>Email: Solicitar envio do código
+    Email->>Mail: Enfileirar e-mail de 2FA
+    API-->>App: Data.requires_2fa=true, Data.challenge, Data.token=null
+
+    App->>API: POST /api/auth/confirm-2fa com X-Tenant-Id, challenge_id e code
+    API->>RL: Limitar por IP, tenant e challenge_id
+    RL-->>API: Permitido
+    API->>MFA: Validar tenant, subjectType, purpose, status, expiração e tentativas
+    MFA->>MFA: Consumir challenge de forma atômica
+    MFA-->>API: Challenge verificado
+    API->>Cred: Recarregar usuário, status, roles e e-mail confirmado
+    Cred-->>API: Usuário ainda válido
+    API->>JWT: Emitir access token com amr=pwd,mfa e mfa_method=email_code
+    API->>RT: Criar refresh token para subjectType=user
+    API-->>App: Data.requires_2fa=false, Data.token, Data.challenge=null
+
+    Note over Policy,Settings: mode=required força 2FA para todos. mode=optional exige 2FA apenas se o usuário ativou.
+    Note over API,MFA: Nenhum JWT ou refresh token é emitido antes da confirmação do 2FA.
+    Note over MFA: O challenge não pode ser reutilizado nem usado por outro tenant ou purpose.
+    Note over RL: Resposta 429 é genérica e não revela existência de usuário ou challenge.

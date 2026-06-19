@@ -1,0 +1,32 @@
+%%{init: {"theme":"base","securityLevel":"strict","deterministicIds":true,"deterministicIDSeed":"liguthub-docs","themeVariables":{"fontFamily":"Inter, ui-sans-serif, system-ui","fontSize":"15px","background":"#ffffff","primaryColor":"#f8fafc","primaryTextColor":"#0f172a","primaryBorderColor":"#cbd5e1","secondaryColor":"#eff6ff","secondaryTextColor":"#1e3a8a","secondaryBorderColor":"#93c5fd","tertiaryColor":"#ecfdf5","tertiaryTextColor":"#065f46","tertiaryBorderColor":"#86efac","lineColor":"#64748b","textColor":"#0f172a"}}}%%
+sequenceDiagram
+    autonumber
+    participant Painel as Front/BFF do painel
+    participant API as Lightcode Registration API
+    participant Authz as Autorização PlatformAdmin
+    participant Repo as PlatformAdminRepository
+    participant Tenant as TenantLookup
+    participant JWT as AccessTokenIssuer
+
+    Note over Painel,API: Este fluxo começa somente depois do login Platform Admin concluir 2FA e emitir platform token.
+
+    Painel->>API: GET /api/platform/tenants com platform token
+    API->>Authz: Validar token_use=platform_admin e platformAdminId
+    Authz-->>API: Platform token válido
+    API->>Repo: Listar tenants ativos vinculados ao admin
+    Repo-->>API: Tenants permitidos
+    API-->>Painel: Lista de tenants
+
+    Painel->>API: POST /api/platform/tenants/{tenantId}/token
+    API->>Authz: Validar platform token
+    Authz-->>API: Platform token válido
+    API->>Tenant: Validar tenant ativo
+    Tenant-->>API: Tenant válido
+    API->>Repo: Validar vínculo ativo admin/tenant
+    Repo-->>API: Vínculo permitido
+    API->>JWT: Emitir tenant access token principal
+    API-->>Painel: tenant_id e token principal do tenant
+
+    Note over Painel: O token principal do tenant é usado nos endpoints operacionais.
+    Note over Painel: O platform token continua restrito a /api/platform/*.
+    Note over API: Sem platform token pós-2FA, não há listagem de tenants nem emissão do tenant token.

@@ -1,0 +1,26 @@
+%%{init: {"theme":"base","securityLevel":"strict","deterministicIds":true,"deterministicIDSeed":"liguthub-docs","themeVariables":{"fontFamily":"Inter, ui-sans-serif, system-ui","fontSize":"15px","background":"#ffffff","primaryColor":"#f8fafc","primaryTextColor":"#0f172a","primaryBorderColor":"#cbd5e1","secondaryColor":"#eff6ff","secondaryTextColor":"#1e3a8a","secondaryBorderColor":"#93c5fd","tertiaryColor":"#ecfdf5","tertiaryTextColor":"#065f46","tertiaryBorderColor":"#86efac","lineColor":"#64748b","textColor":"#0f172a"}}}%%
+sequenceDiagram
+    autonumber
+    participant App as Aplicação terceira
+    participant API as Lightcode Registration API
+    participant Tenant as TenantLookup
+    participant Cred as UserCredentialValidator
+    participant Policy as AuthSchemaTwoFactorPolicy
+    participant MFA as TwoFactorSettingsService
+    participant JWT as AccessTokenIssuer
+    participant RT as RefreshTokenRepository
+
+    App->>API: POST /api/auth/token grant_type=password
+    API->>Tenant: Validar X-Tenant-Id e tenant ativo
+    Tenant-->>API: Tenant válido
+    API->>Cred: Validar username, password, status e e-mail confirmado
+    Cred-->>API: Usuário válido
+    API->>Policy: Resolver auth.twoFactor.mode pelo schema do usuário
+    Policy-->>API: mode=disabled ou mode=optional
+    API->>MFA: Consultar configuração individual do usuário
+    MFA-->>API: 2FA individual desativado
+    API->>JWT: Emitir access token com amr=pwd
+    API->>RT: Criar refresh token para subjectType=user
+    API-->>App: access_token, refresh_token, token_type, expires_in
+
+    Note over API: Sem 2FA obrigatório no schema e sem ativação individual, o login segue sem challenge.
