@@ -1,5 +1,6 @@
 using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application.Accounts;
+using Lightcode.Registration.Application.Emails;
 using Lightcode.Registration.Application.Services;
 using Lightcode.Registration.Application.TwoFactor;
 using Lightcode.Registration.Infrastructure.Email;
@@ -44,7 +45,7 @@ public static class DependencyInjection
         services.AddScoped<ITwoFactorMethod, EmailCodeTwoFactorMethod>();
         services.AddScoped<ITwoFactorMethod, TotpTwoFactorMethod>();
         services.AddScoped<ITwoFactorMethodProvider, TwoFactorMethodProvider>();
-        services.AddScoped<IPlatformSystemEmailSender, SmtpPlatformSystemEmailSender>();
+        services.AddScoped<IPlatformSystemEmailSender, QueuedPlatformSystemEmailSender>();
 
         services.AddScoped<ITenantProvisioner, MongoTenantProvisioner>();
         services.AddScoped<ITenantDbContextFactory, TenantDbContextFactory>();

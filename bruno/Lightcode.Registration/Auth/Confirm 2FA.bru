@@ -23,24 +23,24 @@ body:json {
 }
 
 docs {
-  # Confirmar 2FA do usuário final
-  
+  # Confirmar 2FA do usuario final
+
   **POST** `/api/auth/confirm-2fa`
-  
-  Confirma o código 2FA gerado após `POST /api/auth/token` retornar `requires_2fa=true`.
-  
+
+  Confirma o codigo 2FA gerado apos `POST /api/auth/token` retornar `requires_2fa=true`.
+
   ## Headers
-  - `X-Tenant-Id` — tenant da conta do usuário final.
-  
+  - `X-Tenant-Id`: tenant da conta do usuario final.
+
   ## Corpo
-  - `challenge_id` — id opaco retornado no login.
-  - `code` — código de 6 dígitos recebido por e-mail.
-  
+  - `challenge_id`: id opaco retornado no login
+  - `code`: codigo de 6 digitos recebido por e-mail
+
   ## Resposta (Data)
   - `requires_2fa=false`
-  - `token.access_token` — copie para `jwt`.
-  - `token.refresh_token` — copie para `refreshToken`.
-  
-  ## Segurança
-  Não salve código 2FA, JWT ou refresh token em arquivos versionados.
+  - `token.access_token`: copie para `jwt`
+  - `token.refresh_token`: copie para `refreshToken`
+
+  ## Seguranca
+  Nao salve codigo 2FA, JWT ou refresh token em arquivos versionados.
 }

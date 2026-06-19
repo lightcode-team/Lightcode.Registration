@@ -1,4 +1,4 @@
-﻿meta {
+meta {
   name: Issue Token (password)
   type: http
   seq: 1
@@ -24,45 +24,51 @@ body:json {
 }
 
 vars:pre-request {
-  loginUsername: fredaquino55
+  loginUsername: fredaquino555
   loginPassword: ChangeThis!12345678
+}
+
+script:post-response {
+  const body = res.getBody();
+  
+  bru.setVar("challengeId", body.Data.challenge.challenge_id);
 }
 
 docs {
   # Emitir JWT (password grant)
-
+  
   **POST** `/api/auth/token`
-
-  - **Header obrigatÃ³rio:** `X-Tenant-Id` â€” id do tenant (nÃ£o vai no corpo).
-  - **Corpo:** `grant_type=password`, `username` e `password`.
-
-  ## Resposta (Data)
-  Quando 2FA nÃ£o Ã© exigido:
+  
+  Login humano do usuario final.
+  
+  ## Headers
+  - `X-Tenant-Id`: tenant da conta.
+  
+  ## Corpo
+  - `grant_type`: `password`
+  - `username`: e-mail ou username
+  - `password`: senha do usuario
+  
+  ## Resposta quando 2FA nao e exigido
   - `requires_2fa=false`
-  - `token.access_token` â€” colar no ambiente LOCAL na variÃ¡vel `jwt`
-  - `token.refresh_token` â€” colar em `refreshToken`
-  - `token.token_type` â€” `Bearer`
-  - `token.expires_in` â€” segundos
+  - `token.access_token`: copie para `jwt`
+  - `token.refresh_token`: copie para `refreshToken`
+  - `token.token_type`: `Bearer`
+  - `token.expires_in`: segundos
   - `challenge=null`
-
-  Quando 2FA Ã© exigido:
+  
+  ## Resposta quando 2FA e exigido
   - `requires_2fa=true`
   - `token=null`
-  - `challenge.challenge_id` â€” colar em `challengeId`
-  - `challenge.verification_type` â€” `email_code`
+  - `challenge.challenge_id`: copie para `challengeId`
+  - `challenge.verification_type`: `email_code`
   - `challenge.expires_in`
   - `challenge.destination_hint`
-
+  
   Depois confirme em **Auth / Confirm 2FA**.
-
-  O JWT inclui `sub` (id do utilizador em Mongo), `tenantId`, `token_use=tenant_access` e `iss`/`aud` especÃ­ficos do tenant.
-
-  O token tenant-scoped Ã© assinado com **RS256** e inclui `kid` no header. APIs cliente devem validar via:
-  - **Discovery / OpenID Configuration**
-  - **Discovery / JWKS**
-
+  
   ## Erros comuns
-  - `400` â€” falta `X-Tenant-Id` ou campos obrigatÃ³rios
-  - `401` â€” tenant inativo ou credenciais invÃ¡lidas
-  - `429` â€” muitas tentativas de login humano
+  - `400`: falta `X-Tenant-Id` ou campos obrigatorios
+  - `401`: tenant inativo ou credenciais invalidas
+  - `429`: muitas tentativas de login humano
 }

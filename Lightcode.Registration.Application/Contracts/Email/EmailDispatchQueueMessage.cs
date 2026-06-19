@@ -6,4 +6,8 @@ public sealed record EmailDispatchQueueMessage(
     string? TemplateId,
     string? TemplateKey,
     string To,
-    Dictionary<string, string>? Parameters);
+    Dictionary<string, string>? Parameters,
+    bool SystemEmail = false,
+    string? Subject = null,
+    string? HtmlBody = null,
+    string? TextBody = null);

@@ -1,4 +1,4 @@
-﻿meta {
+meta {
   name: Platform Auth Token
   type: http
   seq: 3
@@ -21,30 +21,36 @@ body:json {
   }
 }
 
+script:post-response {
+  const body = res.getBody();
+  
+  bru.setVar(key,value)"platformJwt", body.Data.token?.access_token);
+}
+
 docs {
   # Platform Auth Token
-
+  
   **POST** `/api/platform-auth/token`
-
+  
   Faz login do ADM central no painel multi-tenant.
-
+  
   ## Resposta (Data)
-  Quando 2FA nÃ£o Ã© exigido:
+  Quando 2FA nao e exigido:
   - `requires_2fa=false`
   - `token.access_token` - copie para `platformJwt`.
   - `token.token_type`
   - `token.expires_in`
   - `challenge=null`
-
-  Quando 2FA Ã© exigido:
+  
+  Quando 2FA e exigido:
   - `requires_2fa=true`
   - `token=null`
-  - `challenge.challenge_id` â€” copie para `challengeId`.
-  - `challenge.verification_type` â€” `email_code`.
+  - `challenge.challenge_id` - copie para `challengeId`.
+  - `challenge.verification_type` - `email_code`.
   - `challenge.expires_in`
   - `challenge.destination_hint`
-
+  
   Depois confirme em **Platform / Platform Auth Confirm 2FA**.
-
+  
   Esse token central serve apenas para rotas `/api/platform/*`.
 }

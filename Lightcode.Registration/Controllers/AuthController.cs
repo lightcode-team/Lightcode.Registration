@@ -72,7 +72,7 @@ public sealed class AuthController(
         return TenantHttpHeaders.TryGetTenantId(Request);
     }
 
-    [HttpPost("confirm-2fa")]
+    [HttpPost("/api/auth/confirm-2fa")]
     [AllowAnonymous]
     public async Task<IActionResult> ConfirmTwoFactor([FromBody] ConfirmTwoFactorRequest body, CancellationToken cancellationToken)
     {

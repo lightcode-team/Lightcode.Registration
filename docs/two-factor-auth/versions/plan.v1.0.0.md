@@ -15,16 +15,17 @@ O foco inicial deve ser o usuário final. Depois, o mesmo core deve ser adaptado
 
 Os fluxos propostos estão documentados em Mermaid em `docs/two-factor-auth/diagrams`:
 
-- [Client credentials sem 2FA](diagrams/01-client-credentials-sem-2fa.mmd)
-- [Login de usuário sem 2FA](diagrams/02-login-usuario-sem-2fa.mmd)
-- [Login de usuário com 2FA por e-mail](diagrams/03-login-usuario-com-2fa-email.mmd)
-- [Ativação de 2FA por e-mail](diagrams/04-ativar-2fa-email-usuario.mmd)
-- [Desativação de 2FA](diagrams/05-desativar-2fa-usuario.mmd)
-- [Login do platform admin com 2FA](diagrams/06-login-platform-admin-com-2fa.mmd)
-- [Emissão do tenant token após 2FA do platform admin](diagrams/07-emitir-tenant-token-apos-platform-2fa.mmd)
-- [Caminho futuro para TOTP](diagrams/08-caminho-futuro-totp.mmd)
-- [Política de 2FA no schema do usuário final](diagrams/09-politica-2fa-schema-usuario-final.mmd)
-- [Rate limiting dos fluxos de autenticação e 2FA](diagrams/10-rate-limiting-2fa-auth.mmd)
+- [Preparação do cliente/aplicação](../diagrams/01-preparacao-cliente-aplicacao.mmd)
+- [Client credentials sem 2FA](../diagrams/02-client-credentials-sem-2fa.mmd)
+- [Política de 2FA no schema do usuário final](../diagrams/03-politica-2fa-schema-usuario-final.mmd)
+- [Login de usuário sem 2FA](../diagrams/04-login-usuario-sem-2fa.mmd)
+- [Login de usuário com 2FA por e-mail](../diagrams/05-login-usuario-com-2fa-email.mmd)
+- [Ativação de 2FA por e-mail](../diagrams/06-ativar-2fa-email-usuario.mmd)
+- [Desativação de 2FA](../diagrams/07-desativar-2fa-usuario.mmd)
+- [Login do platform admin com 2FA](../diagrams/08-login-platform-admin-com-2fa.mmd)
+- [Emissão do tenant token após 2FA do platform admin](../diagrams/09-emitir-tenant-token-apos-platform-2fa.mmd)
+- [Rate limiting dos fluxos de autenticação e 2FA](../diagrams/10-rate-limiting-2fa-auth.mmd)
+- [Caminho futuro para TOTP](../diagrams/11-caminho-futuro-totp.mmd)
 
 ## Contexto de Autenticação de Ponta a Ponta
 
@@ -261,12 +262,15 @@ Futura:
 
 ### Preparação pelo cliente/aplicação
 
-1. Tenant é criado e recebe `Tenant ID`, `Client ID` e `Client Secret`.
-2. Cliente chama `POST /api/auth/token` com `grant_type=client_credentials`.
-3. API emite access token técnico do cliente.
-4. Cliente cria `json_schema` via `POST /api/account-json-schemas`.
-5. Cliente cria conta do usuário final via `POST /api/accounts/admin` ou fluxo público equivalente.
-6. Usuário confirma e-mail por código ou link.
+1. Tenant é criado via `POST /api/tenants` e recebe `Tenant ID`, `Client ID` e `Client Secret` via e-mail.
+2. Deve ser realizado uma chamada no `POST /api/oauth-clients/me` para definir role 'admin'.
+3. Cliente chama `POST /api/auth/token` com `grant_type=client_credentials`.
+4. API emite access token técnico do cliente.
+5. Cliente cria `json_schema` via `POST /api/account-json-schemas`.
+6. Cliente cria conta do usuário final via `POST /api/accounts/admin` ou fluxo público equivalente.
+7. Usuário confirma e-mail por código ou link
+   1. Caso código: `POST /api/accounts/confirm-email-code/`.
+   2. Caso link: Clicar no link do e-mail.
 
 ### Login humano do usuário final
 

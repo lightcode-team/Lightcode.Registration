@@ -14,6 +14,7 @@ public sealed class EmailDispatchConsumerHostedService(
     IConnection rabbitConnection,
     IServiceScopeFactory scopeFactory,
     IOutboundMailSender mailSender,
+    ISystemOutboundMailSender systemMailSender,
     ILogger<EmailDispatchConsumerHostedService> logger) : BackgroundService
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -36,6 +37,13 @@ public sealed class EmailDispatchConsumerHostedService(
                 var message = JsonSerializer.Deserialize<EmailDispatchQueueMessage>(json, JsonOptions);
                 if (message is null || string.IsNullOrWhiteSpace(message.To))
                 {
+                    channel.BasicAck(ea.DeliveryTag, false);
+                    return;
+                }
+
+                if (message.SystemEmail)
+                {
+                    await SendSystemEmailAsync(message, stoppingToken);
                     channel.BasicAck(ea.DeliveryTag, false);
                     return;
                 }
@@ -84,5 +92,27 @@ public sealed class EmailDispatchConsumerHostedService(
         {
             // encerramento
         }
+    }
+
+    private async Task SendSystemEmailAsync(EmailDispatchQueueMessage message, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(message.Subject))
+        {
+            logger.LogWarning("Mensagem de email de sistema sem assunto para {To}.", message.To);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(message.HtmlBody) && string.IsNullOrWhiteSpace(message.TextBody))
+        {
+            logger.LogWarning("Mensagem de email de sistema sem corpo para {To}.", message.To);
+            return;
+        }
+
+        await systemMailSender.SendAsync(
+            message.To,
+            message.Subject,
+            message.HtmlBody,
+            message.TextBody,
+            cancellationToken);
     }
 }

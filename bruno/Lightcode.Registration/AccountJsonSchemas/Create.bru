@@ -21,7 +21,7 @@ auth:bearer {
 
 body:json {
   {
-    "key": "custom-v1",
+    "key": "custom-v1.2",
     "displayName": "Schema personalizado",
     "config": {
       "validateDuplicateEmail": "false",
@@ -32,6 +32,13 @@ body:json {
       "2FA": {
         "Active": true,
         "Type": "Code"
+      },
+      "auth": {
+        "twoFactor": {
+          "mode": "required",
+          "allowedMethods": ["email_code"],
+          "defaultMethod": "email_code"
+        }
       }
     },
     "schemaJson": {
@@ -46,6 +53,12 @@ body:json {
     },
     "isDefault": false
   }
+}
+
+script:post-response {
+  const body = res.getBody();
+  
+  bru.setVar("schemaId", body.Data.id);
 }
 
 docs {

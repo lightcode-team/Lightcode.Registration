@@ -40,6 +40,7 @@ builder.Services.Configure<MasterOptions>(builder.Configuration.GetSection(Maste
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.Configure<RabbitMqOptions>(builder.Configuration.GetSection(RabbitMqOptions.SectionName));
 builder.Services.Configure<SmtpOptions>(builder.Configuration.GetSection(SmtpOptions.SectionName));
+builder.Services.Configure<MasterSmtpOptions>(builder.Configuration.GetSection(MasterSmtpOptions.SectionName));
 
 var mongoConn = builder.Configuration.GetSection(MongoOptions.SectionName)["ConnectionString"]
     ?? throw new InvalidOperationException("Mongo:ConnectionString em falta.");
@@ -112,6 +113,14 @@ builder.Services.AddSingleton<IOutboundMailSender>(sp =>
     if (smtp.UseSmtp)
         return ActivatorUtilities.CreateInstance<SmtpOutboundMailSender>(sp);
     return ActivatorUtilities.CreateInstance<LoggingOutboundMailSender>(sp);
+});
+
+builder.Services.AddSingleton<ISystemOutboundMailSender>(sp =>
+{
+    var smtp = sp.GetRequiredService<IOptions<MasterSmtpOptions>>().Value;
+    if (smtp.UseSmtp)
+        return ActivatorUtilities.CreateInstance<SmtpSystemOutboundMailSender>(sp);
+    return ActivatorUtilities.CreateInstance<LoggingSystemOutboundMailSender>(sp);
 });
 
 builder.Services.AddHostedService<RegistrationExpiryScanHostedService>();

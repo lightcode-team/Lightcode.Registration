@@ -24,16 +24,20 @@ body:json {
 
 docs {
   # Renovar access token
-  
+
   **POST** `/api/auth/token`
-  
-  - **Header obrigatório:** `X-Tenant-Id`
-  - **Corpo:** `grant_type=refresh_token`, `refresh_token`
-  
-  O mesmo refresh token pode ser reutilizado até `MaxRefreshTokenUses` (configuração do tenant).
-  
+
+  Renova o access token sem criar challenge 2FA.
+
+  ## Headers
+  - `X-Tenant-Id`: tenant da conta.
+
+  ## Corpo
+  - `grant_type`: `refresh_token`
+  - `refresh_token`: refresh token emitido anteriormente
+
   ## Resposta (Data)
-  - `access_token` — novo JWT
-  - `refresh_token` — mesmo valor enviado (não há rotação automática)
-  - `expires_in` — segundos
+  - `access_token`: novo JWT
+  - `refresh_token`: mesmo valor enviado
+  - `expires_in`: segundos
 }
