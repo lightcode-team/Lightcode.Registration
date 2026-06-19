@@ -6,4 +6,5 @@
   <Project Path="Lightcode.Registration.Worker/Lightcode.Registration.Worker.csproj" />
   <Project Path="Lightcode.Registration/Lightcode.Registration.csproj" />
   <Project Path="Lightcode.Registration.EmailApi/Lightcode.Registration.EmailApi.csproj" />
+  <Project Path="Lightcode.Registration.Tests/Lightcode.Registration.Tests.csproj" />
 </Solution>
