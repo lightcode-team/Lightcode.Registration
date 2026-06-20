@@ -20,14 +20,14 @@ headers {
 
 docs {
   # Iniciar desativação de 2FA do Platform Admin
-  
+
   **POST** `/api/platform-admins/me/2fa/disable/begin`
-  
+
   Cria um challenge para desativar 2FA do Platform Admin autenticado.
-  
+
   ## Auth
   - Bearer `platformJwt`.
-  
+
   ## Resposta (Data)
   - `challenge_id` — copie para `challengeId`.
   - `verification_type`

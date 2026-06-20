@@ -26,20 +26,20 @@ body:json {
 
 docs {
   # Concluir registo (cadastro por steps)
-  
+
   **POST** `/api/accounts/{userId}/complete-register` (requer **Bearer** JWT)
-  
+
   Valida todos os campos `required` do JSON Schema da conta e ativa o utilizador.
-  
+
   ## Fluxo típico
   1. `POST /api/accounts` — registo parcial (`status: Incomplete`)
   2. `POST /api/auth/token` — obter JWT
   3. `PUT /api/accounts/{userId}` — preencher campos adicionais (validação parcial)
   4. **Este pedido** — validação completa + `Active` (ou `PendingConfirmation` com 2FA)
-  
+
   ## Corpo (opcional)
   - `confirmationReturnUrl` — URL do frontend para modo 2FA `Code`
-  
+
   ## Resposta (Data)
   - `id`, `schemaId`, `requiresEmailConfirmation`, `confirmationUrl`
 }

@@ -12,20 +12,20 @@ get {
 
 docs {
   # OpenID Configuration do tenant
-  
+
   **GET** `/tenants/{tenantId}/.well-known/openid-configuration`
-  
+
   Endpoint publico usado pelo middleware `Microsoft.AspNetCore.Authentication.JwtBearer` nas APIs cliente quando configurado com:
-  
+
   ```csharp
   options.Authority = "{{baseUrl}}/tenants/{{tenantId}}";
   options.Audience = "{{tokenAudience}}";
   ```
-  
+
   ## Resposta
   - `issuer` - authority/issuer do tenant
   - `jwks_uri` - URL do JWKS publico do tenant
   - `id_token_signing_alg_values_supported` - inclui `RS256`
-  
+
   O endpoint nao retorna nenhum segredo; apenas metadados publicos.
 }

@@ -23,21 +23,21 @@ body:json {
 
 docs {
   # Confirmar 2FA do Platform Admin
-  
+
   **POST** `/api/platform-auth/confirm-2fa`
-  
+
   Confirma o código 2FA retornado por `POST /api/platform-auth/token` quando `requires_2fa=true`.
-  
+
   ## Corpo
   - `challenge_id`
   - `code`
-  
+
   ## Resposta (Data)
   - `requires_2fa=false`
   - `token.access_token` — copie para `platformJwt`.
   - `token.token_type`
   - `token.expires_in`
-  
+
   ## Segurança
   Não há tenant selecionado neste fluxo. O e-mail 2FA é enviado pelo SMTP master da plataforma.
 }

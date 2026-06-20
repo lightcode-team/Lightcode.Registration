@@ -23,14 +23,14 @@ body:json {
 
 docs {
   # Activate Platform Admin
-  
+
   **POST** `/api/platform-admins/activate`
-  
+
   Ativa o convite do ADM central e define a senha de login do painel.
-  
+
   ## Corpo
   - `token` - token recebido no convite.
   - `password` - senha com no minimo 8 caracteres.
-  
+
   Depois de ativar, use **Platform Auth Token**.
 }

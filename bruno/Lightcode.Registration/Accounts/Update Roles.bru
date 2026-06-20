@@ -26,11 +26,11 @@ body:json {
 
 docs {
   # Atualizar roles de utilizador
-  
+
   **PUT** `/api/accounts/{userId}/roles`
-  
+
   Requer JWT com role `admin` ou scope `owner`.
   Substitui completamente o array `roles` do utilizador.
-  
+
   Defina `targetUserId` no ambiente (id Mongo da conta).
 }

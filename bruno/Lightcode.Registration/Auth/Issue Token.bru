@@ -30,25 +30,25 @@ vars:pre-request {
 
 script:post-response {
   const body = res.getBody();
-  
+
   bru.setVar("challengeId", body.Data.challenge.challenge_id);
 }
 
 docs {
   # Emitir JWT (password grant)
-  
+
   **POST** `/api/auth/token`
-  
+
   Login humano do usuario final.
-  
+
   ## Headers
   - `X-Tenant-Id`: tenant da conta.
-  
+
   ## Corpo
   - `grant_type`: `password`
   - `username`: e-mail ou username
   - `password`: senha do usuario
-  
+
   ## Resposta quando 2FA nao e exigido
   - `requires_2fa=false`
   - `token.access_token`: copie para `jwt`
@@ -56,7 +56,7 @@ docs {
   - `token.token_type`: `Bearer`
   - `token.expires_in`: segundos
   - `challenge=null`
-  
+
   ## Resposta quando 2FA e exigido
   - `requires_2fa=true`
   - `token=null`
@@ -64,9 +64,9 @@ docs {
   - `challenge.verification_type`: `email_code`
   - `challenge.expires_in`
   - `challenge.destination_hint`
-  
+
   Depois confirme em **Auth / Confirm 2FA**.
-  
+
   ## Erros comuns
   - `400`: falta `X-Tenant-Id` ou campos obrigatorios
   - `401`: tenant inativo ou credenciais invalidas

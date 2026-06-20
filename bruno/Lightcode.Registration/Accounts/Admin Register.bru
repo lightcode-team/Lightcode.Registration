@@ -42,16 +42,16 @@ vars:pre-request {
 
 docs {
   # Criar utilizador (admin)
-  
+
   **POST** `/api/accounts/admin`
-  
+
   Requer JWT com role `admin` ou scope `owner`.
   O tenant vem do claim `tenantId` do token.
-  
+
   ## Corpo
   - `email`, `username`, `password` — obrigatórios
   - `roles` — array de roles (ex.: `admin`, `user`, `template-read`, `send-email`)
-  
+
   ## Resposta (Data)
   - `id` — id Mongo do utilizador criado
 }

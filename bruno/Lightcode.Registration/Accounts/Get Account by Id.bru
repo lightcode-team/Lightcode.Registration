@@ -20,9 +20,9 @@ vars:pre-request {
 
 docs {
   # Obter conta por id (admin)
-  
+
   **GET** `/api/accounts/{userId}`
-  
+
   Requer JWT com role `admin` ou scope `owner`.
   Devolve `profile` sem password nem segredos de confirmação de email.
 }

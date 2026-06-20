@@ -28,18 +28,18 @@ body:json {
 
 docs {
   # Confirmar desativação de 2FA do Platform Admin
-  
+
   **POST** `/api/platform-admins/me/2fa/disable/confirm`
-  
+
   Confirma o challenge e desativa 2FA do Platform Admin autenticado.
-  
+
   ## Auth
   - Bearer `platformJwt`.
-  
+
   ## Corpo
   - `challenge_id`
   - `code`
-  
+
   ## Resposta (Data)
   - `true`
 }

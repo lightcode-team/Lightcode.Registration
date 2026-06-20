@@ -24,7 +24,7 @@ public sealed class QueuedPlatformSystemEmailSender(IEmailEnqueuePublisher email
                 ["purpose"] = purpose
             },
             SystemEmail: true,
-            Subject: "Codigo de verificacao Lightcode",
+            Subject: "Código de verificação Lightcode",
             TextBody: BuildBody(username, code, purpose));
 
         return emailEnqueuePublisher.PublishSendAsync(message, cancellationToken);
@@ -32,11 +32,11 @@ public sealed class QueuedPlatformSystemEmailSender(IEmailEnqueuePublisher email
 
     private static string BuildBody(string username, string code, string purpose) =>
         $"""
-        Ola, {username}.
+        Olá, {username}.
 
-        Seu codigo de verificacao Lightcode e: {code}
+        Seu código de verificação Lightcode é: {code}
 
         Finalidade: {purpose}
-        O codigo expira em poucos minutos. Se voce nao solicitou esta acao, ignore este e-mail.
+        O código expira em poucos minutos. Se você não solicitou esta ação, ignore este e-mail.
         """;
 }

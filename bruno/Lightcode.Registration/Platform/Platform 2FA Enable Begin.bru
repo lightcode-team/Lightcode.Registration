@@ -20,14 +20,14 @@ headers {
 
 docs {
   # Iniciar ativação de 2FA do Platform Admin
-  
+
   **POST** `/api/platform-admins/me/2fa/email/enable/begin`
-  
+
   Cria um challenge para ativar 2FA por e-mail no Platform Admin autenticado.
-  
+
   ## Auth
   - Bearer `platformJwt`.
-  
+
   ## Resposta (Data)
   - `challenge_id` — copie para `challengeId`.
   - `verification_type`

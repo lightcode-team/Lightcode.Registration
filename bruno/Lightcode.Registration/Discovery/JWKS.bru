@@ -12,11 +12,11 @@ get {
 
 docs {
   # JWKS do tenant
-  
+
   **GET** `/tenants/{tenantId}/.well-known/jwks.json`
-  
+
   Retorna a chave publica RSA usada para validar JWTs tenant-scoped assinados com RS256.
-  
+
   ## Resposta
   ```json
   {
@@ -32,6 +32,6 @@ docs {
     ]
   }
   ```
-  
+
   O `kid` deve bater com o header do JWT emitido por `/api/auth/token` ou `/api/platform/tenants/{tenantId}/token`.
 }

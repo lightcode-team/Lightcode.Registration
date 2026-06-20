@@ -27,21 +27,21 @@ body:json {
 
 docs {
   # Confirmar ativação de 2FA por e-mail
-  
+
   **POST** `/api/accounts/me/2fa/email/enable/confirm`
-  
+
   Confirma o código enviado no begin e ativa 2FA por e-mail no usuário final autenticado.
-  
+
   ## Auth
   - Bearer `jwt`.
-  
+
   ## Corpo
   - `challenge_id`
   - `code`
-  
+
   ## Resposta (Data)
   - `true`
-  
+
   ## Segurança
   O código é sensível e não deve ser registrado em logs, screenshots ou arquivos versionados.
 }

@@ -35,11 +35,11 @@ body:json {
 
 docs {
   # Criar cliente OAuth
-  
+
   **POST** `/api/oauth-clients` — requer role `clients-write` ou scope `owner`.
-  
+
   A configuração de token (`tokenConfig`) fica embutida no cliente.
   O `clientSecret` é devolvido uma única vez na resposta; opcionalmente enviado por email via `notifyEmail`.
-  
+
   O cliente owner criado no provisionamento do tenant já inclui scope `owner`.
 }

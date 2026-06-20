@@ -28,18 +28,18 @@ body:json {
 
 docs {
   # Confirmar ativação de 2FA do Platform Admin
-  
+
   **POST** `/api/platform-admins/me/2fa/email/enable/confirm`
-  
+
   Confirma o challenge de ativação e habilita 2FA por e-mail no Platform Admin autenticado.
-  
+
   ## Auth
   - Bearer `platformJwt`.
-  
+
   ## Corpo
   - `challenge_id`
   - `code`
-  
+
   ## Resposta (Data)
   - `true`
 }

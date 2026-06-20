@@ -73,11 +73,11 @@ body:json {
 
 docs {
   # Atualizar JSON Schema
-  
+
   **PUT** `/api/account-json-schemas/{id}`
-  
+
   Campos opcionais (envie só o que quiser alterar): `displayName`, `schemaJson`, `isDefault`.
-  
+
   - `isDefault: true` — promove este schema a default e reaplica validação Mongo na coleção `Users`
   - Para alterar o texto do schema, inclua `schemaJson` com o JSON Schema completo
 }

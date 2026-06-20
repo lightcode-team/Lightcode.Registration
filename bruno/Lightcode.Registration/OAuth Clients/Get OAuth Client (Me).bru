@@ -20,8 +20,8 @@ auth:bearer {
 
 docs {
   # Obter cliente OAuth autenticado
-  
+
   **GET** `/api/oauth-clients/me` — requer role `clients-read` ou scope `owner`.
-  
+
   Devolve o cliente identificado pelo claim `client_id` (ou `sub`) do JWT — não usa id interno MongoDB.
 }
