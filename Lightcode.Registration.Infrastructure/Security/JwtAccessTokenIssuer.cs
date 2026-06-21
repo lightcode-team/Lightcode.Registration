@@ -25,7 +25,11 @@ public sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> jwtOptions) : IAcc
         rsa.ImportPkcs8PrivateKey(Convert.FromBase64String(signingKey.PrivateKeyBase64), out _);
         var key = new RsaSecurityKey(rsa)
         {
-            KeyId = signingKey.KeyId
+            KeyId = signingKey.KeyId,
+            CryptoProviderFactory = new CryptoProviderFactory
+            {
+                CacheSignatureProviders = false
+            }
         };
         var creds = new SigningCredentials(key, SecurityAlgorithms.RsaSha256);
 
