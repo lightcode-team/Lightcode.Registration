@@ -69,6 +69,32 @@ public sealed class PlatformAdminTwoFactorTests
         ctx.AccessTokenIssuer.PlatformClaims.Select(x => x.Type).Should().Contain(["amr", "auth_time", "mfa_method"]);
     }
 
+    [Fact]
+    public async Task Platform_admin_begin_disable_returns_conflict_when_two_factor_is_not_active()
+    {
+        var ctx = TestContext.Create(twoFactorEnabled: false);
+
+        var result = await ctx.Service.BeginDisableTwoFactorAsync(ctx.Admin.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.StatusCode.Should().Be(409);
+        result.Errors.Should().ContainSingle("2FA já está desativado.");
+        ctx.ChallengeService.Created.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Platform_admin_begin_enable_returns_conflict_when_two_factor_is_already_active()
+    {
+        var ctx = TestContext.Create(twoFactorEnabled: true);
+
+        var result = await ctx.Service.BeginEnableEmailTwoFactorAsync(ctx.Admin.Id);
+
+        result.IsSuccess.Should().BeFalse();
+        result.StatusCode.Should().Be(409);
+        result.Errors.Should().ContainSingle("2FA já está ativado.");
+        ctx.ChallengeService.Created.Should().BeFalse();
+    }
+
     private sealed class TestContext
     {
         private TestContext(bool twoFactorEnabled)

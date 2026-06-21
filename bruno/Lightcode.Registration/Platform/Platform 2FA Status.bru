@@ -1,0 +1,35 @@
+meta {
+  name: Platform 2FA Status
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/api/platform-admins/me/2fa/status
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{platformJwt}}
+}
+
+headers {
+  Authorization: Bearer {{platformJwt}}
+}
+
+docs {
+  # Consultar status de 2FA do Platform Admin
+
+  **GET** `/api/platform-admins/me/2fa/status`
+
+  Retorna o status atual do 2FA do Platform Admin autenticado.
+
+  ## Auth
+  - Bearer `platformJwt`.
+
+  ## Resposta (Data)
+  - `enabled`
+  - `email_enabled`
+  - `preferred_method`
+}

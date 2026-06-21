@@ -101,6 +101,16 @@ public sealed class PlatformAdminsController(
         return result.ToApiResponse();
     }
 
+    [HttpGet("me/2fa/status")]
+    [Authorize(Policy = PlatformPolicyNames.PlatformAdmin)]
+    public async Task<IActionResult> GetTwoFactorStatus(CancellationToken cancellationToken)
+    {
+        var result = await platformAdminAppService.GetTwoFactorStatusAsync(
+            GetPlatformAdminId(),
+            cancellationToken);
+        return result.ToApiResponse();
+    }
+
     private string GetPlatformAdminId() =>
         User.FindFirst("platformAdminId")?.Value ?? string.Empty;
 }

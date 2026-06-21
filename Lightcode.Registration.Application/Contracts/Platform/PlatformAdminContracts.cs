@@ -28,3 +28,8 @@ public sealed record PlatformTenantDto(string Id, string Name, string Role);
 public sealed record PlatformTenantTokenResult(
     [property: JsonPropertyName("tenant_id")] string TenantId,
     [property: JsonPropertyName("token")] IssueTokenResponse Token);
+
+public sealed record PlatformAdminTwoFactorStatusResult(
+    [property: JsonPropertyName("enabled")] bool Enabled,
+    [property: JsonPropertyName("email_enabled")] bool EmailEnabled,
+    [property: JsonPropertyName("preferred_method")] string PreferredMethod);

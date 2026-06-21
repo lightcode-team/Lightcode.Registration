@@ -40,6 +40,10 @@ public interface IPlatformAdminAppService
         ConfirmTwoFactorRequest request,
         CancellationToken cancellationToken = default);
 
+    Task<ServiceResult<PlatformAdminTwoFactorStatusResult>> GetTwoFactorStatusAsync(
+        string adminId,
+        CancellationToken cancellationToken = default);
+
     Task<ServiceResult<IReadOnlyList<PlatformTenantDto>>> ListTenantsAsync(
         string adminId,
         CancellationToken cancellationToken = default);

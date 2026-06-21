@@ -165,6 +165,10 @@ public sealed class PlatformAdminAppService(
         if (admin is null)
             return ServiceResult<TwoFactorBeginResponse>.Fail(401, "Administrador inválido ou inativo.");
 
+        var settings = await twoFactorSettingsService.GetPlatformAdminSettingsAsync(admin.Id, cancellationToken);
+        if (settings.Enabled && settings.EmailEnabled)
+            return ServiceResult<TwoFactorBeginResponse>.Fail(409, "2FA jÃ¡ estÃ¡ ativado.");
+
         var challenge = await CreatePlatformAdminChallengeAsync(
             admin,
             TwoFactorChallengePurposes.EnableTwoFactor,
@@ -198,6 +202,10 @@ public sealed class PlatformAdminAppService(
         if (admin is null)
             return ServiceResult<TwoFactorBeginResponse>.Fail(401, "Administrador inválido ou inativo.");
 
+        var settings = await twoFactorSettingsService.GetPlatformAdminSettingsAsync(admin.Id, cancellationToken);
+        if (!settings.Enabled)
+            return ServiceResult<TwoFactorBeginResponse>.Fail(409, "2FA jÃ¡ estÃ¡ desativado.");
+
         var challenge = await CreatePlatformAdminChallengeAsync(
             admin,
             TwoFactorChallengePurposes.DisableTwoFactor,
@@ -221,6 +229,23 @@ public sealed class PlatformAdminAppService(
 
         await twoFactorSettingsService.SetPlatformAdminEmailTwoFactorAsync(adminId.Trim(), false, cancellationToken);
         return ServiceResult<bool>.Ok(true);
+    }
+
+    public async Task<ServiceResult<PlatformAdminTwoFactorStatusResult>> GetTwoFactorStatusAsync(
+        string adminId,
+        CancellationToken cancellationToken = default)
+    {
+        var admin = await RequireActiveAdminAsync(adminId, cancellationToken);
+        if (admin is null)
+            return ServiceResult<PlatformAdminTwoFactorStatusResult>.Fail(401, "Administrador inválido ou inativo.");
+
+        var settings = await twoFactorSettingsService.GetPlatformAdminSettingsAsync(admin.Id, cancellationToken);
+
+        return ServiceResult<PlatformAdminTwoFactorStatusResult>.Ok(
+            new PlatformAdminTwoFactorStatusResult(
+                settings.Enabled,
+                settings.EmailEnabled,
+                settings.PreferredMethod));
     }
 
     public async Task<ServiceResult<IReadOnlyList<PlatformTenantDto>>> ListTenantsAsync(

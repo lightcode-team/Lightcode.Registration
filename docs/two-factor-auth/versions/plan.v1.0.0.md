@@ -320,6 +320,7 @@ Platform admin:
 - `POST /api/platform-auth/confirm-2fa`
 - `POST /api/platform-admins/me/2fa/email/enable`
 - `POST /api/platform-admins/me/2fa/disable`
+- `GET /api/platform-admins/me/2fa/status`
 - futuramente endpoints TOTP equivalentes.
 
 Preferir endpoints `me` para operações do próprio usuário. Quando houver operação administrativa sobre outro usuário, exigir policy admin e registrar auditoria.
@@ -454,6 +455,18 @@ Obrigatório:
 5. somente após confirmação a configuração permanente passa para `Enabled=true`.
 
 O mesmo princípio vale para TOTP: gerar segredo pendente, confirmar código TOTP e só então ativar.
+
+### Endpoints de gerenciamento devem respeitar o estado atual
+
+Os endpoints de `begin` para ativação e desativação não devem disparar e-mail quando a operação já estiver incompatível com o estado salvo.
+
+Obrigatório:
+
+- `begin enable` deve retornar `409` quando o 2FA já estiver ativo para o sujeito;
+- `begin disable` deve retornar `409` quando o 2FA já estiver desativado para o sujeito;
+- essa validação deve existir para usuário final e para platform admin;
+- o front/BFF pode consultar `GET /api/platform-admins/me/2fa/status` para UX, mas a proteção principal deve estar no backend;
+- a UI deve desabilitar ações redundantes e tratar `409` de forma amigável caso o estado tenha mudado fora da aba.
 
 ### Challenge deve ser validado e consumido de forma atômica
 
@@ -655,6 +668,7 @@ Atualizar também os `.bru` já existentes:
 - Alterar `PlatformAdminAppService.IssueTokenAsync`.
 - Criar `POST /api/platform-auth/confirm-2fa`.
 - Ajustar BFF/front para tela de código.
+- Expor endpoint de status para o painel e bloquear operações redundantes de enable/disable com `409`.
 - Enviar e-mail de 2FA para platform admin via SMTP master, usando e-mails globais da plataforma.
 - Adicionar `.bru` dos endpoints de Platform Admin e atualizar `.bru` de `/api/platform-auth/token`.
 
@@ -683,6 +697,8 @@ Os testes devem ser incluídos no projeto `Lightcode.Registration.Tests`. Se o p
 - Challenge usado não pode ser reutilizado.
 - Refresh token não deve exigir novo 2FA.
 - Platform admin com 2FA ativo recebe challenge antes do platform token.
+- Platform admin não gera challenge de desativação quando o 2FA já estiver inativo.
+- Platform admin não gera challenge de ativação quando o 2FA já estiver ativo.
 - Challenge não armazena senha nem segredo sensível.
 - Novo login inválida challenge pendente anterior do mesmo sujeito.
 - Ativar/desativar 2FA exige autenticação recente.
