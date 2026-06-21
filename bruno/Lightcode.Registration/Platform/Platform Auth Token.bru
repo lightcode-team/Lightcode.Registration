@@ -23,17 +23,44 @@ body:json {
 
 script:post-response {
   const body = res.getBody();
-
-  bru.setVar(key,value)"platformJwt", body.Data.token?.access_token);
+  
+  const platformJwt = body?.Data?.token?.access_token;
+  const requires_2fa = body?.Data?.requires_2fa;
+  const challengeId = body?.Data?.challenge?.challenge_id;
+  
+  if (requires_2fa) {
+    bru.setVar("platformJwt", "");
+  
+    if (!challengeId) {
+      bru.setVar("challengeId", "");
+  
+      const errors = body?.Errors?.join(" | ") || "challengeId nao retornado pela API.";
+      throw new Error(errors);
+    }
+  
+    bru.setVar("challengeId", challengeId);
+    return;
+  }
+  
+  if (!requires_2fa && !platformJwt) {
+    bru.setVar("platformJwt", "");
+    bru.setVar("challengeId", "");
+  
+    const errors = body?.Errors?.join(" | ") || "platformJwt não retornado pela API.";
+    throw new Error(errors);
+  }
+  
+  bru.setVar("platformJwt", platformJwt);
+  bru.setVar("challengeId", "");
 }
 
 docs {
   # Platform Auth Token
-
+  
   **POST** `/api/platform-auth/token`
-
+  
   Faz login do ADM central no painel multi-tenant.
-
+  
   ## Resposta (Data)
   Quando 2FA nao e exigido:
   - `requires_2fa=false`
@@ -41,7 +68,7 @@ docs {
   - `token.token_type`
   - `token.expires_in`
   - `challenge=null`
-
+  
   Quando 2FA e exigido:
   - `requires_2fa=true`
   - `token=null`
@@ -49,8 +76,8 @@ docs {
   - `challenge.verification_type` - `email_code`.
   - `challenge.expires_in`
   - `challenge.destination_hint`
-
+  
   Depois confirme em **Platform / Platform Auth Confirm 2FA**.
-
+  
   Esse token central serve apenas para rotas `/api/platform/*`.
 }

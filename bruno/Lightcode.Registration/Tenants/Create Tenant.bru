@@ -28,36 +28,48 @@ vars:pre-request {
 
 script:post-response {
   const body = res.getBody();
-
-  bru.setVar("tenantId", body.Data.id);
+  
+  const tenantId = body?.Data?.id;
+  const oauthClientId = body?.Data?.oAuthClientId;
+  
+  if (!tenantId || !oauthClientId) {
+    bru.setVar("tenantId", "");
+    bru.setVar("oauthClientId", "");
+  
+    const errors = body?.Errors?.join(" | ") || "tenantId ou oauthClientId não retornado pela API.";
+    throw new Error(errors);
+  }
+  
+  bru.setVar("tenantId", tenantId);
+  bru.setVar("oauthClientId", oauthClientId);
 }
 
 docs {
   # Criar tenant
-
+  
   **POST** `/api/tenants`
-
+  
   Provisiona tenant, database `tenant_{id}`, par RSA de assinatura, schema default de conta e colecao `Users`.
-
+  
   ## Headers
   - `X-Provisioning-Key`: obrigatorio se `Master:ProvisioningApiKey` estiver definido; em Development pode ser vazio.
-
+  
   ## Corpo
   - `name`: nome do tenant
   - `adminEmail`: e-mail do admin inicial
-
+  
   ## Resposta (Data)
   - `id`: guardar em `tenantId` no ambiente para token e registro
   - `name`, `databaseName`
   - `oauthClientId`: client principal criado para `client_credentials`
-
+  
   A resposta nao retorna `clientSecret` nem chave privada. O e-mail/log de onboarding envia `tenantId`, `clientId`, `clientSecret` e dados de ativacao do ADM central.
-
+  
   ## Chaves do tenant
   - A API gera RSA por tenant.
   - JWT tenant-scoped sai com `alg=RS256` e `kid`.
   - Validacao externa usa **Discovery / OpenID Configuration** e **Discovery / JWKS**.
-
+  
   ## Erros
   - `400`: nome invalido
   - `401`: chave de provisionamento invalida

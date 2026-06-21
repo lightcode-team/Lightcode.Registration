@@ -22,17 +22,17 @@ body:json {
 }
 
 vars:pre-request {
-  registerEmail: sales.rocketdev@gmail.com
-  emailConfirmationCode: 785451
+  registerEmail: beyijis866@lidugw.com
+  emailConfirmationCode: 640096
 }
 
 docs {
   # Confirmar email (modo Code)
-
+  
   **POST** `/api/accounts/confirm-email-code/{code}`
-
+  
   Requer cabeçalho `X-Tenant-Id`. O código chega por email após registo com `config.2FA.Type = Code`.
-
+  
   ## Variáveis
   - `emailConfirmationCode` — código de 6 dígitos recebido por email
   - `registerEmail` — email usado no registo

@@ -57,21 +57,30 @@ body:json {
 
 script:post-response {
   const body = res.getBody();
-
-  bru.setVar("schemaId", body.Data.id);
+  
+  const schemaId = body?.Data?.id;
+  
+  if (!schemaId) {
+    bru.setVar("schemaId", "");
+  
+    const errors = body?.Errors?.join(" | ") || "schemaId não retornado pela API.";
+    throw new Error(errors);
+  }
+  
+  bru.setVar("schemaId", schemaId);
 }
 
 docs {
   # Criar JSON Schema de conta
-
+  
   **POST** `/api/account-json-schemas` (requer **Bearer** com `tenantId` no token)
-
+  
   - `key` — única por tenant
   - `config` — opcional (`Expiry`, `2FA`: `Active` + `Type` = `Code` [código + `POST /api/accounts/confirm-email-code/{code}`] ou `Link` [URL no email])
   - `schemaJson` — **objeto** JSON Schema (draft), não string; validado com JsonSchema.Net
   - O schema de conta **deve** declarar `email`, `username` e `password` em `properties` e em `required`
   - `isDefault` — se `true`, torna-se o default e atualiza o validador Mongo da coleção `Users`
-
+  
   ## Erros
   - `409` — `key` duplicada
 }

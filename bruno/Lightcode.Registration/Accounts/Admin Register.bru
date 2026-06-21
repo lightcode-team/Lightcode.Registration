@@ -21,7 +21,7 @@ auth:bearer {
 body:json {
   {
     "schemaId": "{{schemaId}}",
-    "email": "sotosac5806@temzo.tech",
+    "email": "beyijis866@lidugw.com",
     "username": "fredaquino55",
     "password": "ChangeThis!12345678",
     "phone": "85997477201",
@@ -42,16 +42,16 @@ vars:pre-request {
 
 docs {
   # Criar utilizador (admin)
-
+  
   **POST** `/api/accounts/admin`
-
+  
   Requer JWT com role `admin` ou scope `owner`.
   O tenant vem do claim `tenantId` do token.
-
+  
   ## Corpo
   - `email`, `username`, `password` — obrigatórios
   - `roles` — array de roles (ex.: `admin`, `user`, `template-read`, `send-email`)
-
+  
   ## Resposta (Data)
   - `id` — id Mongo do utilizador criado
 }

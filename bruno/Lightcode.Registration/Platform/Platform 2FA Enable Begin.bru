@@ -10,24 +10,39 @@ post {
   auth: bearer
 }
 
-auth:bearer {
-  token: {{platformJwt}}
-}
-
 headers {
   Authorization: Bearer {{platformJwt}}
 }
 
+auth:bearer {
+  token: {{platformJwt}}
+}
+
+script:post-response {
+  const body = res.getBody();
+  
+  const challengeId = body?.Data?.challenge_id;
+  
+  if (!challengeId) {
+    bru.setVar("challengeId", "");
+  
+    const errors = body?.Errors?.join(" | ") || "challengeId não retornado pela API.";
+    throw new Error(errors);
+  }
+  
+  bru.setVar("challengeId", challengeId);
+}
+
 docs {
   # Iniciar ativação de 2FA do Platform Admin
-
+  
   **POST** `/api/platform-admins/me/2fa/email/enable/begin`
-
+  
   Cria um challenge para ativar 2FA por e-mail no Platform Admin autenticado.
-
+  
   ## Auth
   - Bearer `platformJwt`.
-
+  
   ## Resposta (Data)
   - `challenge_id` — copie para `challengeId`.
   - `verification_type`
