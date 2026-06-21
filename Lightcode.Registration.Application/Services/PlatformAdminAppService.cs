@@ -167,7 +167,7 @@ public sealed class PlatformAdminAppService(
 
         var settings = await twoFactorSettingsService.GetPlatformAdminSettingsAsync(admin.Id, cancellationToken);
         if (settings.Enabled && settings.EmailEnabled)
-            return ServiceResult<TwoFactorBeginResponse>.Fail(409, "2FA jÃ¡ estÃ¡ ativado.");
+            return ServiceResult<TwoFactorBeginResponse>.Fail(409, "2FA já está ativado.");
 
         var challenge = await CreatePlatformAdminChallengeAsync(
             admin,
@@ -204,7 +204,7 @@ public sealed class PlatformAdminAppService(
 
         var settings = await twoFactorSettingsService.GetPlatformAdminSettingsAsync(admin.Id, cancellationToken);
         if (!settings.Enabled)
-            return ServiceResult<TwoFactorBeginResponse>.Fail(409, "2FA jÃ¡ estÃ¡ desativado.");
+            return ServiceResult<TwoFactorBeginResponse>.Fail(409, "2FA já está desativado.");
 
         var challenge = await CreatePlatformAdminChallengeAsync(
             admin,
