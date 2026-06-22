@@ -1,0 +1,30 @@
+sequenceDiagram
+    autonumber
+    participant Api as Registration API
+    participant Queue as RabbitMQ
+    participant Worker as Registration Worker
+    participant MasterTemplates as SaasMasterDb.EmailTemplates
+    participant MasterSettings as SaasMasterDb.Settings
+    participant Sender as ISystemOutboundMailSender
+    participant Smtp as SMTP Master
+
+    Note over Api,Smtp: Emails admin/plataforma usam o dominio master.
+
+    Api->>Queue: Publish EmailDispatchQueueMessage<br/>SystemEmail=true<br/>TenantId="platform"<br/>TemplateKey=platform-*
+    Queue->>Worker: Deliver message
+    Worker->>Worker: Detect SystemEmail=true
+    alt TemplateKey or TemplateId present
+        Worker->>MasterTemplates: Find by TemplateKey or TemplateId
+        MasterTemplates-->>Worker: EmailTemplate
+        Worker->>Worker: Merge placeholders
+    else Inline subject/body only
+        Worker->>Worker: Use Subject/HtmlBody/TextBody fallback
+    end
+    Worker->>Sender: SendAsync(to, subject, html, text)
+    Sender->>Smtp: Send using MasterSmtp__*
+    Smtp-->>Sender: Accepted
+    Sender-->>Worker: Sent
+    Worker-->>Queue: Ack
+
+    Note over MasterSettings,Sender: SaasMasterDb.Settings/_id=smtp is an organizational mirror updated from MasterSmtp__*.<br/>MasterSmtp__* remains the official send source in v1.0.0.
+    Note over Api,Worker: Emails de tenant continuam usando tenant_{id}.EmailTemplates e tenant_{id}.Settings.
