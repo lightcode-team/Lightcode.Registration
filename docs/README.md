@@ -5,6 +5,7 @@
 ## Domínios
 
 - [2FA e MFA](two-factor-auth/README.md)
+- [Emails de Plataforma](platform-email/README.md)
 
 ## Convenção
 

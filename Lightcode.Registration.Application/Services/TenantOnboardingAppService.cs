@@ -5,6 +5,7 @@ using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Contracts.Email;
 using Lightcode.Registration.Application.Contracts.Platform;
 using Lightcode.Registration.Application.Contracts.Tenants;
+using Lightcode.Registration.Application.Emails;
 using Microsoft.Extensions.Options;
 
 namespace Lightcode.Registration.Application.Services;
@@ -16,8 +17,6 @@ public sealed class TenantOnboardingAppService(
     IOptions<MasterOptions> masterOptions,
     IRuntimeEnvironment runtimeEnvironment) : ITenantOnboardingAppService
 {
-    private const string TenantOnboardingTemplateKey = "tenant-onboarding";
-
     public async Task<ServiceResult<TenantCreatedDto>> CreateTenantAsync(
         CreateTenantCommand command,
         CancellationToken cancellationToken = default)
@@ -85,9 +84,9 @@ public sealed class TenantOnboardingAppService(
 
         await emailEnqueuePublisher.PublishSendAsync(
             new EmailDispatchQueueMessage(
-                provision.Tenant.Id,
+                PlatformEmailTemplates.TenantId,
                 TemplateId: null,
-                TemplateKey: TenantOnboardingTemplateKey,
+                TemplateKey: PlatformEmailTemplates.TenantOnboarding,
                 To: adminEmail,
                 Parameters: new Dictionary<string, string>(StringComparer.Ordinal)
                 {
@@ -98,7 +97,8 @@ public sealed class TenantOnboardingAppService(
                     ["activationUrl"] = string.IsNullOrWhiteSpace(activationUrl) ? "Administrador já ativo." : activationUrl,
                     ["activationToken"] = string.IsNullOrWhiteSpace(activationToken) ? "Administrador já ativo." : activationToken,
                     ["expiresAtUtc"] = string.IsNullOrWhiteSpace(expiresAt) ? "Administrador já ativo." : expiresAt
-                }),
+                },
+                SystemEmail: true),
             cancellationToken);
     }
 

@@ -8,6 +8,7 @@ using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Contracts.Auth;
 using Lightcode.Registration.Application.Contracts.Email;
 using Lightcode.Registration.Application.Contracts.Platform;
+using Lightcode.Registration.Application.Emails;
 using Lightcode.Registration.Application.Security;
 using Lightcode.Registration.Application.TwoFactor;
 using Lightcode.Registration.Domain.Entities;
@@ -30,7 +31,6 @@ public sealed class PlatformAdminAppService(
     IOptions<RegistrationOptions> registrationOptions,
     IRuntimeEnvironment runtimeEnvironment) : IPlatformAdminAppService
 {
-    private const string InviteTemplateKey = "platform-admin-invite";
     private const int InviteExpirationDays = 7;
 
     public async Task<ServiceResult<InvitePlatformAdminResult>> InviteAsync(
@@ -386,9 +386,9 @@ public sealed class PlatformAdminAppService(
     {
         await emailEnqueuePublisher.PublishSendAsync(
             new EmailDispatchQueueMessage(
-                tenantId,
+                PlatformEmailTemplates.TenantId,
                 TemplateId: null,
-                TemplateKey: InviteTemplateKey,
+                TemplateKey: PlatformEmailTemplates.PlatformAdminInvite,
                 To: email,
                 Parameters: new Dictionary<string, string>(StringComparer.Ordinal)
                 {
@@ -396,7 +396,8 @@ public sealed class PlatformAdminAppService(
                     ["activationToken"] = token,
                     ["activationUrl"] = activationUrl ?? token,
                     ["expiresAtUtc"] = expiresAt.ToString("O")
-                }),
+                },
+                SystemEmail: true),
             cancellationToken);
     }
 
@@ -483,7 +484,7 @@ public sealed class PlatformAdminAppService(
         var baseUrl = registrationOptions.Value.PublicApiBaseUrl?.TrimEnd('/');
         return string.IsNullOrWhiteSpace(baseUrl)
             ? null
-            : $"{baseUrl}/platform-admins/activate?token={Uri.EscapeDataString(token)}";
+            : $"{baseUrl}/completar-dados?token={Uri.EscapeDataString(token)}";
     }
 
     private static string? NormalizeEmail(string? email)

@@ -71,6 +71,8 @@ public static class DependencyInjection
 
         services.AddScoped<ITenantSmtpSettingsRepository, MongoTenantSmtpSettingsRepository>();
         services.AddScoped<IEmailTemplateRepository, MongoEmailTemplateRepository>();
+        services.AddScoped<IPlatformEmailTemplateRepository, MongoPlatformEmailTemplateRepository>();
+        services.AddHostedService<PlatformEmailMasterSeedHostedService>();
         if (registerRabbitMqEmailEnqueuePublisher)
             services.AddScoped<IEmailEnqueuePublisher, RabbitMqEmailEnqueuePublisher>();
         else

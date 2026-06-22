@@ -20,6 +20,7 @@ public static class MongoSerialization
             RegisterAccountJsonSchema();
             RegisterEmailTemplate();
             RegisterTenantSmtpSettings();
+            RegisterPlatformSmtpSettings();
             RegisterOAuthClient();
             RegisterRefreshToken();
             RegisterTwoFactorChallenge();
@@ -102,6 +103,19 @@ public static class MongoSerialization
         {
             cm.AutoMap();
             cm.SetIgnoreExtraElements(true);
+        });
+    }
+
+    private static void RegisterPlatformSmtpSettings()
+    {
+        if (BsonClassMap.IsClassMapRegistered(typeof(PlatformSmtpSettingsRoot)))
+            return;
+
+        BsonClassMap.RegisterClassMap<PlatformSmtpSettingsRoot>(cm =>
+        {
+            cm.AutoMap();
+            cm.SetIgnoreExtraElements(true);
+            cm.MapIdProperty(x => x.Id);
         });
     }
 

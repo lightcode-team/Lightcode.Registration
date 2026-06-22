@@ -14,29 +14,18 @@ public sealed class QueuedPlatformSystemEmailSender(IEmailEnqueuePublisher email
         CancellationToken cancellationToken = default)
     {
         var message = new EmailDispatchQueueMessage(
-            TenantId: "platform",
+            TenantId: PlatformEmailTemplates.TenantId,
             TemplateId: null,
-            TemplateKey: null,
+            TemplateKey: PlatformEmailTemplates.PlatformAdminTwoFactorCode,
             To: to,
             Parameters: new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["username"] = username,
+                ["code"] = code,
                 ["purpose"] = purpose
             },
-            SystemEmail: true,
-            Subject: "Código de verificação Lightcode",
-            TextBody: BuildBody(username, code, purpose));
+            SystemEmail: true);
 
         return emailEnqueuePublisher.PublishSendAsync(message, cancellationToken);
     }
-
-    private static string BuildBody(string username, string code, string purpose) =>
-        $"""
-        Olá, {username}.
-
-        Seu código de verificação Lightcode é: {code}
-
-        Finalidade: {purpose}
-        O código expira em poucos minutos. Se você não solicitou esta ação, ignore este e-mail.
-        """;
 }

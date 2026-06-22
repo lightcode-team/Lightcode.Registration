@@ -14,8 +14,6 @@ namespace Lightcode.Registration.Infrastructure.Persistence.Mongo;
 public sealed class MongoTenantProvisioner : ITenantProvisioner
 {
     private const string ClientCredentialsTemplateKey = "client-credentials-secret";
-    private const string PlatformAdminInviteTemplateKey = "platform-admin-invite";
-    private const string TenantOnboardingTemplateKey = "tenant-onboarding";
 
     private readonly IMongoClient _mongoClient;
     private readonly IMongoCollection<Tenant> _tenants;
@@ -111,8 +109,6 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
             await _usersSchemaApplier.ApplyAsync(tenant.Id, mongoInner, cancellationToken);
 
         await SeedClientCredentialsEmailTemplateAsync(tenant, now, cancellationToken);
-        await SeedTenantOnboardingEmailTemplateAsync(tenant, now, cancellationToken);
-        await SeedPlatformAdminInviteEmailTemplateAsync(tenant, now, cancellationToken);
         await SeedEmailConfirmationTemplatesAsync(tenant, now, cancellationToken);
         await SeedLoginTwoFactorEmailTemplateAsync(tenant, now, cancellationToken);
         await SeedPasswordResetEmailTemplateAsync(tenant, now, cancellationToken);
@@ -193,89 +189,6 @@ public sealed class MongoTenantProvisioner : ITenantProvisioner
                 Client Secret: {{clientSecret}}
 
                 Guarde o segredo em local seguro; não será reenviado.
-                """,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
-        };
-
-        await _emailTemplates.InsertAsync(template, cancellationToken);
-    }
-
-    private async Task SeedPlatformAdminInviteEmailTemplateAsync(
-        Tenant tenant,
-        DateTime now,
-        CancellationToken cancellationToken)
-    {
-        var template = new EmailTemplate
-        {
-            Id = Guid.NewGuid().ToString("N"),
-            TenantId = tenant.Id,
-            Key = PlatformAdminInviteTemplateKey,
-            DisplayName = "Convite ADM central",
-            Subject = "Convite de administração — {{tenantName}}",
-            HtmlBody = """
-                <p>Olá,</p>
-                <p>Você recebeu acesso administrativo ao painel central.</p>
-                <p>Ative o seu acesso pelo link abaixo:</p>
-                <p><a href="{{activationUrl}}">{{activationUrl}}</a></p>
-                <p>Se o link não abrir, use este token: <code>{{activationToken}}</code></p>
-                <p>O convite expira em {{expiresAtUtc}}.</p>
-                """,
-            TextBody = """
-                Você recebeu acesso administrativo ao painel central.
-
-                Ative o seu acesso:
-                {{activationUrl}}
-
-                Token: {{activationToken}}
-                Expira em: {{expiresAtUtc}}
-                """,
-            CreatedAtUtc = now,
-            UpdatedAtUtc = now
-        };
-
-        await _emailTemplates.InsertAsync(template, cancellationToken);
-    }
-
-    private async Task SeedTenantOnboardingEmailTemplateAsync(
-        Tenant tenant,
-        DateTime now,
-        CancellationToken cancellationToken)
-    {
-        var template = new EmailTemplate
-        {
-            Id = Guid.NewGuid().ToString("N"),
-            TenantId = tenant.Id,
-            Key = TenantOnboardingTemplateKey,
-            DisplayName = "Onboarding do tenant",
-            Subject = "Tenant criado - {{tenantName}}",
-            HtmlBody = """
-                <p>Olá,</p>
-                <p>O tenant <strong>{{tenantName}}</strong> foi criado com sucesso.</p>
-                <p>Guarde as credenciais abaixo em local seguro; os segredos não serão reenviados.</p>
-                <ul>
-                  <li><strong>Tenant ID:</strong> {{tenantId}}</li>
-                  <li><strong>Client ID:</strong> {{clientId}}</li>
-                  <li><strong>Client Secret:</strong> {{clientSecret}}</li>
-                </ul>
-                <p>Ative o acesso administrativo pelo link abaixo:</p>
-                <p><a href="{{activationUrl}}">{{activationUrl}}</a></p>
-                <p>Token de ativação: <code>{{activationToken}}</code></p>
-                <p>Expira em: {{expiresAtUtc}}</p>
-                """,
-            TextBody = """
-                O tenant {{tenantName}} foi criado com sucesso.
-
-                Guarde as credenciais abaixo em local seguro; os segredos não serão reenviados.
-
-                Tenant ID: {{tenantId}}
-                Client ID: {{clientId}}
-                Client Secret: {{clientSecret}}
-                Ativação administrativa:
-                {{activationUrl}}
-
-                Token de ativação: {{activationToken}}
-                Expira em: {{expiresAtUtc}}
                 """,
             CreatedAtUtc = now,
             UpdatedAtUtc = now

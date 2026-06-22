@@ -14,7 +14,9 @@ Não expõe HTTP — corre como `Worker Service` (.NET Generic Host).
 docker compose up -d mongo rabbitmq
 ```
 
-Para envio real de email, configure `Smtp:UseSmtp: true`. As credenciais usadas no envio ficam por tenant em `tenant_{id}.Settings` (`_id=smtp`); `TenantDefaultSmtp:*` apenas semeia esse documento na criacao de novos tenants.
+Para envio real de email de tenant, configure `Smtp:UseSmtp: true`. As credenciais usadas no envio ficam por tenant em `tenant_{id}.Settings` (`_id=smtp`); `TenantDefaultSmtp:*` apenas semeia esse documento na criacao de novos tenants.
+
+Para emails administrativos da plataforma, configure `MasterSmtp:UseSmtp: true`. Esses envios usam `MasterSmtp:*`; `SaasMasterDb.Settings/_id=smtp` e apenas um espelho organizacional dessa configuracao.
 
 ## Executar
 
@@ -28,7 +30,7 @@ Em Docker Compose o serviço `worker` arranca automaticamente com `Mongo__Connec
 
 | Hosted Service | Função |
 |----------------|--------|
-| `EmailDispatchConsumerHostedService` | Consome fila de emails; resolve template no tenant DB; envia via SMTP |
+| `EmailDispatchConsumerHostedService` | Consome fila de emails; resolve templates de tenant ou master; envia via SMTP |
 | `RegistrationExpiryScanHostedService` | Percorre tenants ativos; marca contas com registo expirado |
 | `RegistrationExpiryReminderConsumerHostedService` | Consome fila de lembretes (30/15 dias antes da expiração) |
 
@@ -43,11 +45,13 @@ Mensagens publicadas por:
 Fluxo:
 
 1. Mensagem `EmailDispatchQueueMessage` (JSON) na fila RabbitMQ
-2. Worker carrega template por `templateKey` ou `templateId` em `tenant_{id}.EmailTemplates`
-3. Merge de placeholders `{{chave}}`
-4. SMTP do tenant (`Settings`, `_id=smtp`)
+2. Worker decide o repositorio pelo campo `SystemEmail`
+3. Quando `SystemEmail=false`, carrega template por `templateKey` ou `templateId` em `tenant_{id}.EmailTemplates`
+4. Quando `SystemEmail=true`, carrega template por `templateKey` ou `templateId` em `SaasMasterDb.EmailTemplates`, ou usa assunto/corpo inline se nenhum template foi informado
+5. Merge de placeholders `{{chave}}`
+6. SMTP do tenant (`Settings`, `_id=smtp`) ou SMTP master (`MasterSmtp:*`)
 
-Com `Smtp:UseSmtp: false` (default em dev), os emails são apenas registados em log (`LoggingOutboundMailSender`).
+Com `Smtp:UseSmtp: false` ou `MasterSmtp:UseSmtp: false` (default em dev), os emails correspondentes sao apenas registados em log.
 
 ### Expiração de cadastros
 
@@ -63,6 +67,7 @@ O scan usa o schema default (`AccountJsonSchemas`) de cada tenant para ler regra
 | `RabbitMQ:HostName` | Host RabbitMQ (`localhost` ou `rabbitmq` no Docker) |
 | `RabbitMQ:ScanIntervalMinutes` | Intervalo do scan de expiração (default: 360) |
 | `Smtp:UseSmtp` | `true` = envio SMTP real usando `tenant_{id}.Settings`; `false` = apenas log |
+| `MasterSmtp:UseSmtp` | `true` = envio SMTP real para emails de plataforma usando `MasterSmtp:*`; `false` = apenas log |
 
 Exemplo Docker / produção:
 
