@@ -1,4 +1,5 @@
 using Lightcode.Registration.Application.Abstractions;
+using Lightcode.Registration.Application;
 using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Infrastructure;
 using Lightcode.Registration.Infrastructure.Notifications;
@@ -49,6 +50,7 @@ builder.Services.AddSingleton<IMongoClient>(_ => new MongoClient(mongoConn));
 MongoSerialization.EnsureRegistered();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddInfrastructure();
+builder.Services.AddApplication();
 
 builder.Services.AddSingleton<IConnection>(sp =>
 {
