@@ -5,6 +5,7 @@
 ## Domínios
 
 - [2FA e MFA](two-factor-auth/README.md)
+- [Custom Domains e Tenant Resolution](custom-domains/README.md)
 - [Emails de Plataforma](platform-email/README.md)
 - [Views de Autenticacao e SSO](views-autenticacao/README.md)
 

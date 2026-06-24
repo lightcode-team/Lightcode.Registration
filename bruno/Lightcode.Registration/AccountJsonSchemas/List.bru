@@ -14,13 +14,28 @@ auth:bearer {
   token: {{jwt}}
 }
 
+script:post-response {
+  const body = res.getBody();
+  
+  const schemaId = body?.Data?.clientId;
+  
+  if (!schemaId) {
+    bru.setVar("schemaId", "");
+  
+    const errors = body?.Errors?.join(" | ") || "SchemaId não retornado pela API.";
+    throw new Error(errors);
+  }
+  
+  bru.setVar("schemaId", schemaId);
+}
+
 docs {
   # Listar JSON Schemas de conta
-
+  
   **GET** `/api/account-json-schemas`
-
+  
   Lista todos os schemas do **tenant do token** (claim `tenantId`).
-
+  
   ## Resposta (Data)
   Array de schemas com `id`, `key`, `schemaJson`, `isDefault`, etc.
 }

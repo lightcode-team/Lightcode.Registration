@@ -367,3 +367,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# Custom rules
+sso-multitenant
+sso-oidc
+custom-domains

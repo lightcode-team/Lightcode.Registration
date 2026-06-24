@@ -1,7 +1,7 @@
 meta {
   name: Confirm Email Link
   type: http
-  seq: 14
+  seq: 11
 }
 
 get {
@@ -12,11 +12,11 @@ get {
 
 docs {
   # Confirmar email (modo Link)
-
+  
   **GET** `/api/accounts/confirm-email/{token}?tenantId={tenantId}&email={email}`
-
+  
   O link completo é enviado por email após registo com `config.2FA.Type = Link`.
-
+  
   ## Variáveis
   - `emailConfirmationToken` — token do link de confirmação
   - `tenantId` — id do tenant

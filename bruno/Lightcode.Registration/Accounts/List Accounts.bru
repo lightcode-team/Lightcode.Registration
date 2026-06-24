@@ -1,7 +1,7 @@
 meta {
   name: List Accounts (admin)
   type: http
-  seq: 4
+  seq: 2
 }
 
 get {
@@ -16,8 +16,8 @@ auth:bearer {
 
 docs {
   # Listar contas (admin)
-
+  
   **GET** `/api/accounts`
-
+  
   Requer JWT com role `admin` ou scope `owner`.
 }
