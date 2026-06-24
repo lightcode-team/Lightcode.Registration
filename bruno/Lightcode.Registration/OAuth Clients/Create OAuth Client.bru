@@ -19,6 +19,14 @@ body:json {
   {
     "displayName": "FinAi Integration",
     "notifyEmail": "admin@example.com",
+    "redirect_uris": [
+      "{{hostedRedirectUri}}"
+    ],
+    "allowed_scopes": [
+      "openid",
+      "email"
+    ],
+    "require_consent": false,
     "tokenConfig": {
       "accessTokenExpirationMinutes": 30,
       "refreshTokenExpirationDays": 30,

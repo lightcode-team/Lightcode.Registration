@@ -14,7 +14,8 @@ public sealed class AccountAdminAppService(
     IJsonSchemaValidationService jsonSchemaValidation,
     IUserAccountWriter userAccountWriter,
     IPasswordHasher passwordHasher,
-    AccountRegistrationTwoFactorSupport twoFactorSupport) : IAccountAdminAppService
+    AccountRegistrationTwoFactorSupport twoFactorSupport,
+    IRefreshTokenRepository refreshTokenRepository) : IAccountAdminAppService
 {
     public async Task<ServiceResult<RegisterAccountResult>> RegisterByAdminAsync(
         string tenantId,
@@ -240,6 +241,12 @@ public sealed class AccountAdminAppService(
             return ServiceResult<UpdateAccountRolesResult>.Fail(400, errors.ToArray());
 
         await userAccountWriter.ReplaceUserDocumentAsync(tenant.Id, userId.Trim(), validationJson, cancellationToken);
+        await refreshTokenRepository.RevokeBySubjectAsync(
+            tenant.Id,
+            userId.Trim(),
+            TokenSubjectTypes.User,
+            cancellationToken);
+
         return ServiceResult<UpdateAccountRolesResult>.Ok(new UpdateAccountRolesResult(roles));
     }
 }

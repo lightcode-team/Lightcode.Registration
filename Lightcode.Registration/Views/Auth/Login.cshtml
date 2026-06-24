@@ -18,10 +18,7 @@
 </head>
 <body style="@backgroundStyle">
     <main class="login-card" aria-labelledby="login-title">
-        @if (!string.IsNullOrWhiteSpace(frontConfig.LogoUrl))
-        {
-            <img class="login-logo" src="@frontConfig.LogoUrl" alt="@messages.Heading" />
-        }
+        <partial name="~/Views/Shared/_AuthLogo.cshtml" model="frontConfig" />
 
         <h1 id="login-title" class="login-title">@messages.Heading</h1>
         <p class="login-subtitle">@messages.Subtitle</p>
@@ -31,8 +28,11 @@
             <div class="alert">@Model.ErrorMessage</div>
         }
 
-        <form method="post" asp-action="Login" asp-controller="Auth" data-login-form>
+        @if (!string.IsNullOrWhiteSpace(Model.TransactionId))
+        {
+        <form method="post" action="/auth/login" data-login-form>
             @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="TransactionId" />
             <input type="hidden" asp-for="TenantId" />
 
             <div class="field">
@@ -43,14 +43,20 @@
 
             <div class="field">
                 <label for="Password">@messages.PasswordLabel</label>
-                <input asp-for="Password" autocomplete="current-password" placeholder="@messages.PasswordPlaceholder" />
+                <div class="password-field">
+                    <input asp-for="Password" autocomplete="current-password" placeholder="@messages.PasswordPlaceholder" data-password-input />
+                    <button type="button" class="password-toggle" data-password-toggle aria-label="Mostrar ou ocultar senha">Mostrar</button>
+                </div>
                 <span asp-validation-for="Password" class="field-error"></span>
             </div>
+
+            <a class="auth-link auth-link-right" href="/auth/forgot-password?transactionId=@Uri.EscapeDataString(Model.TransactionId)">Esqueci minha senha</a>
 
             <button type="submit" class="login-submit" data-login-submit data-loading-text="@messages.SubmittingButton">
                 @messages.SubmitButton
             </button>
         </form>
+        }
     </main>
     <script src="~/auth/js/login.js" asp-append-version="true"></script>
 </body>

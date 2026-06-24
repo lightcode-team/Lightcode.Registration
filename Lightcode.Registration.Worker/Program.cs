@@ -1,6 +1,7 @@
 using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application;
 using Lightcode.Registration.Application.Configuration;
+using Lightcode.Registration.Application.Emails;
 using Lightcode.Registration.Infrastructure;
 using Lightcode.Registration.Infrastructure.Notifications;
 using Lightcode.Registration.Infrastructure.Persistence.Mongo;
@@ -51,6 +52,7 @@ MongoSerialization.EnsureRegistered();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddInfrastructure();
 builder.Services.AddApplication();
+builder.Services.AddScoped<EmailDispatchMessageProcessor>();
 
 builder.Services.AddSingleton<IConnection>(sp =>
 {
@@ -120,9 +122,9 @@ builder.Services.AddSingleton<IOutboundMailSender>(sp =>
 builder.Services.AddSingleton<ISystemOutboundMailSender>(sp =>
 {
     var smtp = sp.GetRequiredService<IOptions<MasterSmtpOptions>>().Value;
-    if (smtp.UseSmtp)
+    // if (smtp.UseSmtp)
         return ActivatorUtilities.CreateInstance<SmtpSystemOutboundMailSender>(sp);
-    return ActivatorUtilities.CreateInstance<LoggingSystemOutboundMailSender>(sp);
+    // return ActivatorUtilities.CreateInstance<LoggingSystemOutboundMailSender>(sp);
 });
 
 builder.Services.AddHostedService<RegistrationExpiryScanHostedService>();

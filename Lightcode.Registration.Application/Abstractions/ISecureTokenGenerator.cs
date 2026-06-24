@@ -11,4 +11,6 @@ public interface ISecureTokenGenerator
     string GenerateEmailConfirmationToken();
 
     string GeneratePasswordResetToken();
+
+    string GenerateAuthorizationCode() => GeneratePasswordResetToken();
 }

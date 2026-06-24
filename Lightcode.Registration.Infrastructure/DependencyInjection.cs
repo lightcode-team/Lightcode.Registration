@@ -37,6 +37,10 @@ public static class DependencyInjection
         services.AddScoped<ITenantSigningKeyResolver, MongoTenantSigningKeyResolver>();
 
         services.AddScoped<IOAuthClientRepository, MongoOAuthClientRepository>();
+        services.AddScoped<IHostedAuthTransactionRepository, MongoHostedAuthTransactionRepository>();
+        services.AddScoped<IHostedAuthSessionRepository, MongoHostedAuthSessionRepository>();
+        services.AddScoped<IAuthorizationCodeRepository, MongoAuthorizationCodeRepository>();
+        services.AddScoped<IAuthAuditLogRepository, MongoAuthAuditLogRepository>();
         services.AddScoped<IOAuthClientAppService, OAuthClientAppService>();
         services.AddScoped<IRefreshTokenRepository, MongoRefreshTokenRepository>();
         services.AddScoped<ITwoFactorChallengeRepository, MongoTwoFactorChallengeRepository>();
@@ -55,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<IAccessTokenIssuer, JwtAccessTokenIssuer>();
 
         services.AddScoped<IAuthenticationAppService, AuthenticationAppService>();
+        services.AddScoped<IHostedAuthenticationAppService, HostedAuthenticationAppService>();
         services.AddScoped<IPlatformAdminAppService, PlatformAdminAppService>();
         services.AddScoped<ITenantOnboardingAppService, TenantOnboardingAppService>();
         services.AddScoped<IWeatherForecastAppService, WeatherForecastAppService>();

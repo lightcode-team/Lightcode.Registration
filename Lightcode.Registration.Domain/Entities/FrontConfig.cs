@@ -46,4 +46,10 @@ public sealed class FrontConfigMessages
     public string? SubmittingButton { get; set; }
 
     public string? AuthenticationNotIntegrated { get; set; }
+    public string? TwoFactorHeading { get; set; }
+    public string? TwoFactorSubtitle { get; set; }
+    public string? ForgotPasswordHeading { get; set; }
+    public string? ForgotPasswordSubtitle { get; set; }
+    public string? ResetPasswordHeading { get; set; }
+    public string? ResetPasswordSubtitle { get; set; }
 }

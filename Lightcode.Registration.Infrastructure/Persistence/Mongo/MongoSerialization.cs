@@ -22,6 +22,7 @@ public static class MongoSerialization
             RegisterTenantSmtpSettings();
             RegisterPlatformSmtpSettings();
             RegisterOAuthClient();
+            RegisterHostedAuthentication();
             RegisterRefreshToken();
             RegisterTwoFactorChallenge();
             RegisterFrontConfig();
@@ -163,6 +164,49 @@ public static class MongoSerialization
         });
     }
 
+    private static void RegisterHostedAuthentication()
+    {
+        if (!BsonClassMap.IsClassMapRegistered(typeof(HostedAuthTransaction)))
+        {
+            BsonClassMap.RegisterClassMap<HostedAuthTransaction>(cm =>
+            {
+                cm.AutoMap();
+                cm.SetIgnoreExtraElements(true);
+                cm.MapIdProperty(x => x.Id);
+            });
+        }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(HostedAuthSession)))
+        {
+            BsonClassMap.RegisterClassMap<HostedAuthSession>(cm =>
+            {
+                cm.AutoMap();
+                cm.SetIgnoreExtraElements(true);
+                cm.MapIdProperty(x => x.Id);
+            });
+        }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(AuthorizationCodeGrant)))
+        {
+            BsonClassMap.RegisterClassMap<AuthorizationCodeGrant>(cm =>
+            {
+                cm.AutoMap();
+                cm.SetIgnoreExtraElements(true);
+                cm.MapIdProperty(x => x.Id);
+            });
+        }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(AuthAuditLog)))
+        {
+            BsonClassMap.RegisterClassMap<AuthAuditLog>(cm =>
+            {
+                cm.AutoMap();
+                cm.SetIgnoreExtraElements(true);
+                cm.MapIdProperty(x => x.Id);
+            });
+        }
+    }
+
     private static void RegisterFrontConfig()
     {
         if (BsonClassMap.IsClassMapRegistered(typeof(FrontConfig)))
@@ -201,6 +245,12 @@ public static class MongoSerialization
             cm.GetMemberMap(x => x.SubmitButton).SetElementName("submit_button");
             cm.GetMemberMap(x => x.SubmittingButton).SetElementName("submitting_button");
             cm.GetMemberMap(x => x.AuthenticationNotIntegrated).SetElementName("authentication_not_integrated");
+            cm.GetMemberMap(x => x.TwoFactorHeading).SetElementName("two_factor_heading");
+            cm.GetMemberMap(x => x.TwoFactorSubtitle).SetElementName("two_factor_subtitle");
+            cm.GetMemberMap(x => x.ForgotPasswordHeading).SetElementName("forgot_password_heading");
+            cm.GetMemberMap(x => x.ForgotPasswordSubtitle).SetElementName("forgot_password_subtitle");
+            cm.GetMemberMap(x => x.ResetPasswordHeading).SetElementName("reset_password_heading");
+            cm.GetMemberMap(x => x.ResetPasswordSubtitle).SetElementName("reset_password_subtitle");
         });
     }
 

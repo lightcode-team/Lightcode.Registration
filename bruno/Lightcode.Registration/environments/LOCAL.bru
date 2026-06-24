@@ -1,6 +1,6 @@
 vars {
-  baseUrl: http://localhost:5012
-  tenantId: 1b3ca779866a41cfa52aec39e65e82bd
+  baseUrl: https://localhost:7035
+  tenantId: 1ba3ffa1c53948459f88d702ff209be3
   tenantAuthority: {{baseUrl}}/tenants/{{tenantId}}
   openIdConfigurationUrl: {{baseUrl}}/tenants/{{tenantId}}/.well-known/openid-configuration
   jwksUrl: {{baseUrl}}/tenants/{{tenantId}}/.well-known/jwks.json
@@ -10,9 +10,18 @@ vars {
   provisioningKey: 123456789
   loginUsername: admin
   loginPassword: ChangeThisAdmin!12345678
-  schemaId: ""
-  oauthClientId: ""
+  schemaId: c8b25ac940e044c590a30053bcecc4d2
+  oauthClientId: client_1ba3ffa1c53948459f88d702ff209be3
   oauthClientSecret: ""
+  hostedRedirectUri: https://localhost:4200/auth/callback
+  hostedRedirectUriEncoded: https://localhost:4200/auth/callback
+  hostedScope: openid email
+  hostedScopeEncoded: openid email
+  oauthState: login
+  oauthNonce: idpotency123
+  pkceVerifier: ""
+  pkceChallenge: wEeD5vFGh5sYOq0bmN4eb6hut9Zla15bhrIVZxBfU9c
+  authorizationCode: ""
   platformAdminEmail: frederick.aquino45@gmail.com
   platformPassword: ChangeThisPlatform!12345678
   platformInviteToken: ""

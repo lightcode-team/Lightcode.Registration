@@ -37,7 +37,13 @@ public sealed class FrontConfigAppService(IFrontConfigRepository frontConfigRepo
                 SubmittingButton = ValueOrDefault(messages?.SubmittingButton, fallback.Messages.SubmittingButton),
                 AuthenticationNotIntegrated = ValueOrDefault(
                     messages?.AuthenticationNotIntegrated,
-                    fallback.Messages.AuthenticationNotIntegrated)
+                    fallback.Messages.AuthenticationNotIntegrated),
+                TwoFactorHeading = ValueOrDefault(messages?.TwoFactorHeading, fallback.Messages.TwoFactorHeading),
+                TwoFactorSubtitle = ValueOrDefault(messages?.TwoFactorSubtitle, fallback.Messages.TwoFactorSubtitle),
+                ForgotPasswordHeading = ValueOrDefault(messages?.ForgotPasswordHeading, fallback.Messages.ForgotPasswordHeading),
+                ForgotPasswordSubtitle = ValueOrDefault(messages?.ForgotPasswordSubtitle, fallback.Messages.ForgotPasswordSubtitle),
+                ResetPasswordHeading = ValueOrDefault(messages?.ResetPasswordHeading, fallback.Messages.ResetPasswordHeading),
+                ResetPasswordSubtitle = ValueOrDefault(messages?.ResetPasswordSubtitle, fallback.Messages.ResetPasswordSubtitle)
             },
             Css = ValueOrDefault(config.Css, fallback.Css),
             LogoUrl = NullIfWhiteSpace(config.LogoUrl),

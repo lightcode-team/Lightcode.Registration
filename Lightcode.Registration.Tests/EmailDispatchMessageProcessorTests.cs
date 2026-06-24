@@ -3,6 +3,7 @@ using Lightcode.Registration.Application.Abstractions;
 using Lightcode.Registration.Application.Contracts.Email;
 using Lightcode.Registration.Application.Emails;
 using Lightcode.Registration.Domain.Entities;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Lightcode.Registration.Tests;
@@ -129,7 +130,8 @@ public sealed class EmailDispatchMessageProcessorTests
             tenantRepo ?? new FakeTenantTemplateRepository(),
             platformRepo ?? new FakePlatformTemplateRepository(),
             tenantSender ?? new FakeOutboundMailSender(),
-            systemSender ?? new FakeSystemOutboundMailSender());
+            systemSender ?? new FakeSystemOutboundMailSender(),
+            NullLogger<EmailDispatchMessageProcessor>.Instance);
 
     private sealed class FakeTenantTemplateRepository : IEmailTemplateRepository
     {

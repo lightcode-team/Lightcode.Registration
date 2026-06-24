@@ -4,6 +4,7 @@ using Lightcode.Registration.Application.Configuration;
 using Lightcode.Registration.Application.Contracts.Email;
 using Lightcode.Registration.Application.Security;
 using Lightcode.Registration.Domain.Entities;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Lightcode.Registration.Application.Accounts;
@@ -16,7 +17,8 @@ public sealed class AccountRegistrationTwoFactorSupport(
     ISecureTokenGenerator tokenGenerator,
     IPasswordHasher passwordHasher,
     IEmailEnqueuePublisher emailEnqueuePublisher,
-    IOptions<RegistrationOptions> registrationOptions)
+    IOptions<RegistrationOptions> registrationOptions,
+    ILogger<AccountRegistrationTwoFactorSupport> logger)
 {
     public bool IsTwoFactorActive(AccountJsonSchemaConfig config) =>
         config.TwoFactor is { Active: true } && config.TwoFactor.Type.HasValue;
@@ -67,7 +69,7 @@ public sealed class AccountRegistrationTwoFactorSupport(
         else
             parameters["confirmationLink"] = BuildApiConfirmationLink(tenantId, email, plainSecret);
 
-        await emailEnqueuePublisher.PublishSendAsync(
+        var messageId = await emailEnqueuePublisher.PublishSendAsync(
             new EmailDispatchQueueMessage(
                 tenantId,
                 TemplateId: null,
@@ -75,6 +77,12 @@ public sealed class AccountRegistrationTwoFactorSupport(
                 To: email,
                 Parameters: parameters),
             cancellationToken);
+
+        logger.LogInformation(
+            "Email de confirmacao de conta enfileirado TenantId={TenantId} TemplateKey={TemplateKey} MessageId={MessageId}",
+            tenantId,
+            templateKey,
+            messageId);
 
         return new RegistrationTwoFactorApplyResult(true, confirmationUrl);
     }

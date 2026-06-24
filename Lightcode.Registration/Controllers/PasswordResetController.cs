@@ -6,21 +6,33 @@ using Microsoft.AspNetCore.Mvc;
 namespace Lightcode.Registration.Controllers;
 
 [AllowAnonymous]
-public sealed class PasswordResetController(IAccountPasswordResetAppService passwordResetAppService) : Controller
+public sealed class PasswordResetController(
+    IAccountPasswordResetAppService passwordResetAppService,
+    IFrontConfigAppService frontConfigAppService) : Controller
 {
     [HttpGet("/reset-password")]
-    public IActionResult ResetPassword([FromQuery] string? token, [FromQuery] string? tenantId, [FromQuery] string? email)
+    public async Task<IActionResult> ResetPassword(
+        [FromQuery] string? token,
+        [FromQuery] string? tenantId,
+        [FromQuery] string? email,
+        [FromQuery] string? transactionId,
+        CancellationToken cancellationToken)
     {
+        var frontConfig = await frontConfigAppService.ResolveAsync(tenantId, cancellationToken);
         if (string.IsNullOrWhiteSpace(token) || string.IsNullOrWhiteSpace(tenantId) || string.IsNullOrWhiteSpace(email))
         {
             return View(new ResetPasswordViewModel
             {
+                FrontConfig = frontConfig,
+                TransactionId = transactionId,
                 ErrorMessage = "Link inválido ou incompleto."
             });
         }
 
         return View(new ResetPasswordViewModel
         {
+            FrontConfig = frontConfig,
+            TransactionId = transactionId,
             Token = token.Trim(),
             TenantId = tenantId.Trim(),
             Email = email.Trim()
@@ -31,6 +43,7 @@ public sealed class PasswordResetController(IAccountPasswordResetAppService pass
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model, CancellationToken cancellationToken)
     {
+        model.FrontConfig = await frontConfigAppService.ResolveAsync(model.TenantId, cancellationToken);
         if (!ModelState.IsValid)
             return View(model);
 
@@ -51,6 +64,8 @@ public sealed class PasswordResetController(IAccountPasswordResetAppService pass
 
         return View(new ResetPasswordViewModel
         {
+            FrontConfig = model.FrontConfig,
+            TransactionId = model.TransactionId,
             SuccessMessage = result.Message ?? "Senha redefinida com sucesso."
         });
     }

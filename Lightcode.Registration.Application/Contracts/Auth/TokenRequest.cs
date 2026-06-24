@@ -9,4 +9,8 @@ public sealed record TokenRequest(
     string? Password,
     [property: JsonPropertyName("refresh_token")] string? RefreshToken,
     [property: JsonPropertyName("client_id")] string? ClientId,
-    [property: JsonPropertyName("client_secret")] string? ClientSecret);
+    [property: JsonPropertyName("client_secret")] string? ClientSecret,
+    string? Code = null,
+    [property: JsonPropertyName("redirect_uri")] string? RedirectUri = null,
+    [property: JsonPropertyName("code_verifier")] string? CodeVerifier = null,
+    string? Scope = null);

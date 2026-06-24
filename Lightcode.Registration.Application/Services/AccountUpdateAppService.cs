@@ -80,6 +80,12 @@ public sealed class AccountUpdateAppService(
             ?? throw new InvalidOperationException("Falha ao clonar documento.");
 
         var passwordFromPatchPlain = false;
+        var rolesChanged = false;
+        var emailChanged = false;
+        var originalEmail = existingObj["email"] is JsonValue originalEmailNode
+                            && originalEmailNode.TryGetValue<string>(out var originalEmailValue)
+            ? originalEmailValue.Trim().ToLowerInvariant()
+            : null;
         foreach (var prop in patchObj)
         {
             var key = prop.Key;
@@ -110,6 +116,7 @@ public sealed class AccountUpdateAppService(
                 }
 
                 merged["roles"] = new JsonArray(UserRoles.NormalizeAccountRoles(list).Select(r => JsonValue.Create(r)!).ToArray());
+                rolesChanged = true;
                 continue;
             }
 
@@ -133,7 +140,11 @@ public sealed class AccountUpdateAppService(
         }
 
         if (merged["email"] is JsonValue ev && ev.TryGetValue<string>(out var em))
-            merged["email"] = em.Trim().ToLowerInvariant();
+        {
+            var normalizedEmail = em.Trim().ToLowerInvariant();
+            merged["email"] = normalizedEmail;
+            emailChanged = !string.Equals(originalEmail, normalizedEmail, StringComparison.Ordinal);
+        }
 
         if (merged["username"] is JsonValue uv && uv.TryGetValue<string>(out var un))
             merged["username"] = un.Trim().ToLowerInvariant();
@@ -176,7 +187,7 @@ public sealed class AccountUpdateAppService(
 
         await userAccountWriter.ReplaceUserDocumentAsync(tenant.Id, targetUserId.Trim(), merged.ToJsonString(), cancellationToken);
 
-        if (passwordFromPatchPlain)
+        if (passwordFromPatchPlain || rolesChanged || emailChanged)
             await refreshTokenRepository.RevokeBySubjectAsync(
                 tenant.Id,
                 targetUserId.Trim(),

@@ -1,0 +1,58 @@
+meta {
+  name: Login
+  type: http
+  seq: 19
+}
+
+get {
+  url: https://localhost:7035/auth/login?redirect_uri=https%3A%2F%2Flocalhost%3A4200%2Fauth%2Fcallback
+  body: none
+  auth: oauth2
+}
+
+params:query {
+  redirect_uri: https%3A%2F%2Flocalhost%3A4200%2Fauth%2Fcallback
+}
+
+headers {
+  X-Tenant-Id: 1ba3ffa1c53948459f88d702ff209be3
+  X-OAuth-Client-Id: client_1ba3ffa1c53948459f88d702ff209be3
+  X-OAuth-State: login
+  X-OAuth-Nonce: idpotency123
+  X-OAuth-Scope: openid email
+  X-PKCE-Code-Challenge: wEeD5vFGh5sYOq0bmN4eb6hut9Zla15bhrIVZxBfU9c
+  X-PKCE-Code-Challenge-Method: S256
+}
+
+auth:oauth2 {
+  grant_type: authorization_code
+  callback_url: 
+  authorization_url: 
+  access_token_url: 
+  refresh_token_url: 
+  client_id: 
+  client_secret: 
+  scope: 
+  state: 
+  pkce: false
+  credentials_placement: body
+  credentials_id: credentials
+  token_source: access_token
+  token_placement: header
+  token_header_prefix: Bearer
+  auto_fetch_token: true
+  auto_refresh_token: false
+}
+
+docs {
+  # Confirmar email (modo Link)
+  
+  **GET** `/api/accounts/confirm-email/{token}?tenantId={tenantId}&email={email}`
+  
+  O link completo é enviado por email após registo com `config.2FA.Type = Link`.
+  
+  ## Variáveis
+  - `emailConfirmationToken` — token do link de confirmação
+  - `tenantId` — id do tenant
+  - `registerEmail` — email usado no registo (URL-encoded se necessário)
+}

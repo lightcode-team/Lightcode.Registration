@@ -5,6 +5,8 @@ namespace Lightcode.Registration.Models;
 
 public sealed class LoginViewModel
 {
+    public string? TransactionId { get; set; }
+
     public string? TenantId { get; set; }
 
     public FrontConfigDto FrontConfig { get; set; } = FrontConfigDefaults.Create();

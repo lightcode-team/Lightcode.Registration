@@ -17,6 +17,15 @@ public sealed class OAuthClient
 
     public OAuthClientTokenConfiguration TokenConfig { get; set; } = new();
 
+    /// <summary>Callbacks autorizados para o login hospedado. Lista vazia mantém o cliente sem authorization code.</summary>
+    public List<string> RedirectUris { get; set; } = [];
+
+    /// <summary>Escopos que podem ser solicitados no authorization code flow.</summary>
+    public List<string> AllowedScopes { get; set; } = [];
+
+    /// <summary>Prepara o modelo para uma futura tela de consentimento sem ativar o fluxo nesta versão.</summary>
+    public bool RequireConsent { get; set; }
+
     public bool Active { get; set; } = true;
 
     public DateTime CreatedAtUtc { get; set; }

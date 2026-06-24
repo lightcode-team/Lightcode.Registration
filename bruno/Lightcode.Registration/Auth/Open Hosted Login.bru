@@ -1,0 +1,48 @@
+meta {
+  name: Open Hosted Login
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/auth/login?response_type=code&tenant_id={{tenantId}}&client_id={{oauthClientId}}&redirect_uri=https://localhost:4200/auth/callback&scope=openid email&state=login&nonce={{oauthNonce}}&code_challenge={{pkceChallenge}}&code_challenge_method=S256
+  body: none
+  auth: none
+}
+
+params:query {
+  response_type: code
+  tenant_id: {{tenantId}}
+  client_id: {{oauthClientId}}
+  redirect_uri: https://localhost:4200/auth/callback
+  scope: openid email
+  state: login
+  nonce: {{oauthNonce}}
+  code_challenge: {{pkceChallenge}}
+  code_challenge_method: S256
+}
+
+vars:pre-request {
+  hostedRedirectUri: https://localhost:4200/auth/callback
+  hostedScope: openid email
+}
+
+docs {
+  # Abrir Login Hospedado
+  
+  **GET** `/auth/login`
+  
+  Esta request segue o formato de Authorization Endpoint OAuth2/OIDC:
+  
+  - `response_type=code`
+  - `tenant_id={{tenantId}}`
+  - `client_id={{oauthClientId}}`
+  - `redirect_uri={{hostedRedirectUri}}`
+  - `scope={{hostedScope}}`
+  - `state={{oauthState}}`
+  - `nonce={{oauthNonce}}`
+  - `code_challenge={{pkceChallenge}}`
+  - `code_challenge_method=S256`
+  
+  O script gera `pkceVerifier`, `pkceChallenge`, `oauthState` e `oauthNonce`. Guarde `pkceVerifier`: ele sera usado no exchange em `/api/auth/token` com `grant_type=authorization_code`.
+}

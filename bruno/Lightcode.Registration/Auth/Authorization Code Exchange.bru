@@ -1,0 +1,55 @@
+meta {
+  name: Authorization Code Exchange
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/auth/token
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+  X-Tenant-Id: {{tenantId}}
+}
+
+body:json {
+  {
+    "grant_type": "authorization_code",
+    "client_id": "{{oauthClientId}}",
+    "code": "{{authorizationCode}}",
+    "redirect_uri": "{{hostedRedirectUri}}",
+    "code_verifier": "{{pkceVerifier}}"
+  }
+}
+
+vars:pre-request {
+  authorizationCode: ""
+}
+
+script:post-response {
+  const body = res.getBody();
+  const token = body?.Data?.token?.access_token;
+  const refreshToken = body?.Data?.token?.refresh_token;
+
+  if (!token) {
+    bru.setVar("jwt", "");
+    const errors = body?.Errors?.join(" | ") || "Token nao retornado pela API.";
+    throw new Error(errors);
+  }
+
+  bru.setVar("jwt", token);
+  bru.setVar("refreshToken", refreshToken || "");
+}
+
+docs {
+  # Trocar Authorization Code
+
+  Use depois do callback receber `code` e `state`.
+
+  - `authorizationCode`: cole o `code` recebido no callback.
+  - `pkceVerifier`: gerado pela request **Open Hosted Login**.
+  - `redirect_uri`: deve ser identico ao valor usado no inicio do fluxo.
+}

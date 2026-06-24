@@ -15,4 +15,21 @@ public interface IAuthenticationAppService
         ConfirmTwoFactorRequest request,
         string tenantId,
         CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<HostedPasswordAuthenticationResult>> BeginHostedPasswordAuthenticationAsync(
+        string? username,
+        string? password,
+        string tenantId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<HostedPasswordAuthenticationResult>> ConfirmHostedTwoFactorAsync(
+        ConfirmTwoFactorRequest request,
+        string tenantId,
+        CancellationToken cancellationToken = default);
+
+    Task<ServiceResult<AuthTokenResponse>> IssueHostedIdentityTokenAsync(
+        string subjectId,
+        string? mfaMethod,
+        string tenantId,
+        CancellationToken cancellationToken = default);
 }

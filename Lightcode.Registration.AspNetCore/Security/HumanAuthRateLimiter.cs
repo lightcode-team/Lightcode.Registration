@@ -51,6 +51,18 @@ public sealed class HumanAuthRateLimiter(ILogger<HumanAuthRateLimiter> logger)
             tenantId,
             subjectId);
 
+    public IActionResult? LimitTwoFactorResend(
+        HttpContext context,
+        string? tenantId,
+        string? subjectId) =>
+        TryConsume(
+            context,
+            "two_factor_resend",
+            permitLimit: 1,
+            window: TimeSpan.FromSeconds(30),
+            tenantId,
+            subjectId);
+
     public IActionResult? LimitAccountRecovery(
         HttpContext context,
         string? tenantId,

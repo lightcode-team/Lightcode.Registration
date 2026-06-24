@@ -1,14 +1,18 @@
 using System.ComponentModel.DataAnnotations;
+using Lightcode.Registration.Application.Contracts.Frontend;
 
 namespace Lightcode.Registration.Models;
 
 public sealed class ResetPasswordViewModel
 {
+    public FrontConfigDto FrontConfig { get; set; } = FrontConfigDefaults.Create();
     public string Token { get; set; } = default!;
 
     public string TenantId { get; set; } = default!;
 
     public string Email { get; set; } = default!;
+
+    public string? TransactionId { get; set; }
 
     [Required(ErrorMessage = "Nova senha é obrigatória.")]
     [MinLength(8, ErrorMessage = "A senha deve ter pelo menos 8 caracteres.")]

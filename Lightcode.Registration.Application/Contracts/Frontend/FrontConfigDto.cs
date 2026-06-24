@@ -36,4 +36,11 @@ public sealed class FrontConfigMessagesDto
     public string SubmittingButton { get; init; } = FrontConfigDefaults.SubmittingButton;
 
     public string AuthenticationNotIntegrated { get; init; } = FrontConfigDefaults.AuthenticationNotIntegrated;
+
+    public string TwoFactorHeading { get; init; } = FrontConfigDefaults.TwoFactorHeading;
+    public string TwoFactorSubtitle { get; init; } = FrontConfigDefaults.TwoFactorSubtitle;
+    public string ForgotPasswordHeading { get; init; } = FrontConfigDefaults.ForgotPasswordHeading;
+    public string ForgotPasswordSubtitle { get; init; } = FrontConfigDefaults.ForgotPasswordSubtitle;
+    public string ResetPasswordHeading { get; init; } = FrontConfigDefaults.ResetPasswordHeading;
+    public string ResetPasswordSubtitle { get; init; } = FrontConfigDefaults.ResetPasswordSubtitle;
 }

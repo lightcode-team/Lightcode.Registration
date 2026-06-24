@@ -56,18 +56,23 @@ body:json {
 }
 
 script:post-response {
+  const status = res.getStatus();
   const body = res.getBody();
   
   const schemaId = body?.Data?.id;
   
-  if (!schemaId) {
-    bru.setVar("schemaId", "");
+  if (status === 200 || status === 202) {
+      const schemaId = body?.Data?.id;
   
-    const errors = body?.Errors?.join(" | ") || "schemaId não retornado pela API.";
-    throw new Error(errors);
+      if (!schemaId) {
+          bru.setVar("schemaId", "");
+  
+          const errors = body?.Errors?.join(" | ") || "schemaId não retornado pela API.";
+          throw new Error(errors);
+      }
+  
+      bru.setVar("schemaId", schemaId);
   }
-  
-  bru.setVar("schemaId", schemaId);
 }
 
 docs {

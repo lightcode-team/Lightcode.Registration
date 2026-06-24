@@ -22,6 +22,14 @@ auth:bearer {
 body:json {
   {
     "displayName": "FinAi Integration",
+    "redirect_uris": [
+      "{{hostedRedirectUri}}"
+    ],
+    "allowed_scopes": [
+      "openid",
+      "email"
+    ],
+    "require_consent": false,
     "tokenConfig": {
       "accessTokenExpirationMinutes": 60,
       "refreshTokenExpirationDays": 15,
@@ -65,7 +73,15 @@ body:json {
 }
 
 docs {
-  # Atualizar configuração de token do cliente
+  # Atualizar cliente OAuth
 
-  **PUT** `/api/oauth-clients/me` — requer role `clients-write` ou scope `owner`. Opera sobre o cliente identificado pelo claim `client_id` (ou `sub`) do JWT.
+  **PUT** `/api/oauth-clients/me` requer role `clients-write` ou scope `owner`.
+
+  Opera sobre o cliente identificado pelo claim `client_id` ou `sub` do JWT.
+
+  Esta request atualiza tambem o suporte ao login hospedado:
+
+  - `redirect_uris`: deve incluir exatamente `{{hostedRedirectUri}}`.
+  - `allowed_scopes`: deve incluir os scopes aceitos pelo SSO, como `openid` e `email`.
+  - `require_consent`: mantido `false` nesta versao, preparado para consentimento futuro.
 }

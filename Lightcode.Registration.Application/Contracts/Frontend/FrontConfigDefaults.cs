@@ -17,6 +17,12 @@ public static class FrontConfigDefaults
     public const string SubmitButton = "Entrar";
     public const string SubmittingButton = "Entrando...";
     public const string AuthenticationNotIntegrated = "Login ainda nao integrado ao servico de autenticacao.";
+    public const string TwoFactorHeading = "Verificação em duas etapas";
+    public const string TwoFactorSubtitle = "Digite o código de seis dígitos enviado para {destination}.";
+    public const string ForgotPasswordHeading = "Esqueci minha senha";
+    public const string ForgotPasswordSubtitle = "Informe seu username ou e-mail. Se a conta existir, enviaremos as instruções.";
+    public const string ResetPasswordHeading = "Redefinir senha";
+    public const string ResetPasswordSubtitle = "Defina uma nova senha para sua conta.";
 
     public static FrontConfigDto Create()
     {
@@ -150,6 +156,85 @@ body {
 .login-submit:disabled {
     cursor: wait;
     background: #6f8fa8;
+}
+
+.password-field {
+    position: relative;
+}
+
+.password-field input {
+    padding-right: 5rem;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.75rem;
+    transform: translateY(-50%);
+    border: 0;
+    color: #1264a3;
+    background: transparent;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.auth-link,
+.auth-link-button {
+    color: #1264a3;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 650;
+    text-decoration: none;
+}
+
+.auth-link:hover,
+.auth-link-button:hover {
+    text-decoration: underline;
+}
+
+.auth-link-right {
+    display: block;
+    margin: -0.35rem 0 1rem;
+    text-align: right;
+}
+
+.auth-link-centered {
+    display: block;
+    margin-top: 1.25rem;
+    text-align: center;
+}
+
+.auth-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1.25rem;
+}
+
+.auth-link-button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.auth-link-button:disabled {
+    color: #64748b;
+    cursor: wait;
+    text-decoration: none;
+}
+
+.one-time-code {
+    text-align: center;
+    letter-spacing: 0.5rem;
+    font-size: 1.35rem !important;
+    font-variant-numeric: tabular-nums;
+}
+
+.alert-success {
+    border-color: #a7f3d0;
+    color: #065f46;
+    background: #ecfdf5;
 }
 """;
 }

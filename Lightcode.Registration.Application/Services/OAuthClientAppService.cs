@@ -42,7 +42,11 @@ public sealed class OAuthClientAppService(
         CancellationToken cancellationToken = default)
     {
         var config = OAuthClientMapping.ToEntity(request.TokenConfig);
-        var errors = OAuthClientTokenConfigurationValidator.Validate(config);
+        var errors = OAuthClientTokenConfigurationValidator.Validate(config).ToList();
+        var redirectUris = OAuthRedirectUriValidator.Normalize(request.RedirectUris);
+        var allowedScopes = OAuthScopeValidator.Normalize(request.AllowedScopes);
+        errors.AddRange(redirectUris.Errors);
+        errors.AddRange(allowedScopes.Errors);
         if (errors.Count > 0)
             return ServiceResult<OAuthClientCreatedDto>.Fail(400, errors);
 
@@ -60,6 +64,9 @@ public sealed class OAuthClientAppService(
             ClientSecretHash = passwordHasher.Hash(plainSecret),
             DisplayName = request.DisplayName?.Trim(),
             TokenConfig = config,
+            RedirectUris = redirectUris.Values.ToList(),
+            AllowedScopes = allowedScopes.Values.ToList(),
+            RequireConsent = request.RequireConsent,
             Active = true,
             CreatedAtUtc = now,
             UpdatedAtUtc = now
@@ -91,7 +98,10 @@ public sealed class OAuthClientAppService(
                 entity.ClientId,
                 plainSecret,
                 entity.DisplayName,
-                OAuthClientMapping.ToConfigDto(entity.TokenConfig)));
+                OAuthClientMapping.ToConfigDto(entity.TokenConfig),
+                entity.RedirectUris,
+                entity.AllowedScopes,
+                entity.RequireConsent));
     }
 
     public async Task<ServiceResult<OAuthClientDto>> UpdateByClientIdAsync(
@@ -105,12 +115,19 @@ public sealed class OAuthClientAppService(
             return ServiceResult<OAuthClientDto>.Fail(404, "Cliente OAuth não encontrado.");
 
         var config = OAuthClientMapping.ToEntity(request.TokenConfig);
-        var errors = OAuthClientTokenConfigurationValidator.Validate(config);
+        var errors = OAuthClientTokenConfigurationValidator.Validate(config).ToList();
+        var redirectUris = OAuthRedirectUriValidator.Normalize(request.RedirectUris ?? client.RedirectUris);
+        var allowedScopes = OAuthScopeValidator.Normalize(request.AllowedScopes ?? client.AllowedScopes);
+        errors.AddRange(redirectUris.Errors);
+        errors.AddRange(allowedScopes.Errors);
         if (errors.Count > 0)
             return ServiceResult<OAuthClientDto>.Fail(400, errors);
 
         client.DisplayName = request.DisplayName?.Trim();
         client.TokenConfig = config;
+        client.RedirectUris = redirectUris.Values.ToList();
+        client.AllowedScopes = allowedScopes.Values.ToList();
+        client.RequireConsent = request.RequireConsent ?? client.RequireConsent;
         client.UpdatedAtUtc = DateTime.UtcNow;
 
         await repository.ReplaceAsync(tenantId, client, cancellationToken);

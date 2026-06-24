@@ -1,0 +1,5 @@
+@model Lightcode.Registration.Application.Contracts.Frontend.FrontConfigDto
+@if (!string.IsNullOrWhiteSpace(Model.LogoUrl))
+{
+    <img class="login-logo" src="@Model.LogoUrl" alt="" />
+}

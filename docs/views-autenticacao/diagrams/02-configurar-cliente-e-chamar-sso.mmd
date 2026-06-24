@@ -1,0 +1,67 @@
+%%{init: {"theme":"base","securityLevel":"strict","deterministicIds":true,"deterministicIDSeed":"lightcode-hosted-auth-setup-v1","themeVariables":{"fontFamily":"Inter, ui-sans-serif, system-ui","fontSize":"15px","background":"#ffffff","primaryColor":"#f8fafc","primaryTextColor":"#0f172a","primaryBorderColor":"#cbd5e1","secondaryColor":"#eff6ff","secondaryTextColor":"#1e3a8a","secondaryBorderColor":"#93c5fd","tertiaryColor":"#ecfdf5","tertiaryTextColor":"#065f46","tertiaryBorderColor":"#86efac","lineColor":"#64748b","textColor":"#0f172a"}}}%%
+flowchart TD
+    Start([Inicio: preciso usar o SSO de login hospedado])
+
+    Tenant["1. Criar tenant<br/>Bruno: Tenants / Create Tenant"]
+    TenantOut["Salvar variaveis<br/>tenantId<br/>jwt owner ou platformTenantJwt<br/>baseUrl"]
+
+    SchemaDecision{"Ja existe schema de usuario final?"}
+    SchemaCreate["2. Criar schema de conta<br/>Bruno: AccountJsonSchemas / Create<br/>Definir email, username, password, roles e politica 2FA"]
+    SchemaSave["Salvar schemaId se necessario"]
+
+    UserDecision{"Ja existe usuario final ativo?"}
+    UserCreate["3. Criar usuario final<br/>Bruno: Accounts / Register ou Admin Register<br/>Enviar X-Tenant-Id ou JWT do tenant"]
+    User2fa{"Schema exige confirmacao/2FA<br/>na criacao?"}
+    ConfirmUser["Confirmar email/cadastro<br/>Bruno: Confirm Email Code ou Complete Register"]
+
+    ClientDecision{"Ja existe OAuthClient para login hospedado?"}
+    ClientCreate["4. Criar OAuthClient<br/>Bruno: OAuth Clients / Create OAuth Client"]
+    ClientConfig["Configurar client<br/>redirect_uris inclui hostedRedirectUri<br/>allowed_scopes inclui openid/email<br/>require_consent=false por enquanto"]
+    ClientSave["Salvar oauthClientId<br/>oauthClientSecret somente se precisar de client_credentials"]
+
+    CallbackCheck{"redirect_uri da app<br/>bate exatamente com redirect_uris?"}
+    FixCallback["Corrigir hostedRedirectUri<br/>ou atualizar OAuthClient"]
+
+    Pkce["5. Preparar chamada SSO<br/>Gerar state, nonce, code_verifier e code_challenge S256"]
+    BrunoOpen["Bruno: Auth / Open Hosted Login<br/>gera pkceVerifier, pkceChallenge, oauthState e oauthNonce"]
+
+    CallSso["6. Chamar SSO<br/>GET /auth/login?response_type=code<br/>&tenant_id={{tenantId}}<br/>&client_id={{oauthClientId}}<br/>&redirect_uri={{hostedRedirectUri}}<br/>&scope={{hostedScope}}<br/>&state={{oauthState}}<br/>&nonce={{oauthNonce}}<br/>&code_challenge={{pkceChallenge}}<br/>&code_challenge_method=S256"]
+
+    LoginScreen["Tela Razor de login abre<br/>branding do tenant aplicado"]
+    UserLogin["Usuario informa username e senha"]
+    TwoFactorDecision{"Usuario exige 2FA?"}
+    TwoFactor["Tela 2FA<br/>codigo por email<br/>reenviar/cancelar se necessario"]
+    Callback["Callback da aplicacao recebe<br/>code + state"]
+    ValidateState{"state recebido<br/>confere com oauthState?"}
+    Reject["Rejeitar callback<br/>possivel fluxo invalido"]
+    Exchange["7. Trocar code por tokens<br/>Bruno: Auth / Authorization Code Exchange<br/>POST /api/auth/token"]
+    ExchangeBody["Body<br/>grant_type=authorization_code<br/>client_id={{oauthClientId}}<br/>code={{authorizationCode}}<br/>redirect_uri={{hostedRedirectUri}}<br/>code_verifier={{pkceVerifier}}"]
+    Tokens(["Fim: access token e refresh token emitidos<br/>somente apos PKCE valido"])
+
+    Start --> Tenant --> TenantOut --> SchemaDecision
+    SchemaDecision -- "Nao" --> SchemaCreate --> SchemaSave --> UserDecision
+    SchemaDecision -- "Sim" --> UserDecision
+    UserDecision -- "Nao" --> UserCreate --> User2fa
+    User2fa -- "Sim" --> ConfirmUser --> ClientDecision
+    User2fa -- "Nao" --> ClientDecision
+    UserDecision -- "Sim" --> ClientDecision
+    ClientDecision -- "Nao" --> ClientCreate --> ClientConfig --> ClientSave --> CallbackCheck
+    ClientDecision -- "Sim" --> CallbackCheck
+    CallbackCheck -- "Nao" --> FixCallback --> CallbackCheck
+    CallbackCheck -- "Sim" --> Pkce --> BrunoOpen --> CallSso --> LoginScreen
+    LoginScreen --> UserLogin --> TwoFactorDecision
+    TwoFactorDecision -- "Sim" --> TwoFactor --> Callback
+    TwoFactorDecision -- "Nao" --> Callback
+    Callback --> ValidateState
+    ValidateState -- "Nao" --> Reject
+    ValidateState -- "Sim" --> Exchange --> ExchangeBody --> Tokens
+
+    subgraph Security["Pontos de seguranca"]
+        S1["Nunca colocar senha, code_verifier, tokens ou codigo 2FA na URL"]
+        S2["redirect_uri precisa bater exatamente"]
+        S3["authorization code e challenge 2FA sao de uso unico"]
+        S4["tenant, client, state, nonce, scope, callback e PKCE ficam vinculados por correlationId"]
+    end
+
+    Security -.-> CallSso
+    Security -.-> Exchange

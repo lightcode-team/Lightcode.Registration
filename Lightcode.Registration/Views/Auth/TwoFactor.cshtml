@@ -1,0 +1,58 @@
+@model Lightcode.Registration.Models.TwoFactorViewModel
+@{
+    var frontConfig = Model.FrontConfig;
+    var backgroundStyle = string.IsNullOrWhiteSpace(frontConfig.BackgroundImageUrl)
+        ? null
+        : $"--login-background-image: url('{frontConfig.BackgroundImageUrl}');";
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@frontConfig.Messages.TwoFactorHeading</title>
+    <style>@Html.Raw(frontConfig.Css)</style>
+</head>
+<body style="@backgroundStyle">
+    <main class="login-card" aria-labelledby="two-factor-title">
+        <partial name="~/Views/Shared/_AuthLogo.cshtml" model="frontConfig" />
+        <h1 id="two-factor-title" class="login-title">@frontConfig.Messages.TwoFactorHeading</h1>
+        <p class="login-subtitle">@frontConfig.Messages.TwoFactorSubtitle.Replace("{destination}", Model.DestinationHint)</p>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="alert" role="alert">@Model.ErrorMessage</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.SuccessMessage))
+        {
+            <div class="alert alert-success" role="status">@Model.SuccessMessage</div>
+        }
+
+        <form method="post" action="/auth/2fa" data-login-form>
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="TransactionId" />
+            <div class="field">
+                <label asp-for="Code">Código de verificação</label>
+                <input asp-for="Code" class="one-time-code" inputmode="numeric" autocomplete="one-time-code"
+                       maxlength="6" pattern="[0-9]{6}" data-login-username autofocus />
+                <span asp-validation-for="Code" class="field-error"></span>
+            </div>
+            <button type="submit" class="login-submit" data-login-submit data-loading-text="Verificando...">Verificar</button>
+        </form>
+
+        <div class="auth-actions">
+            <form method="post" action="/auth/2fa/resend">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="transactionId" value="@Model.TransactionId" />
+                <button type="submit" class="auth-link-button" data-resend-button data-cooldown="30">Reenviar código</button>
+            </form>
+            <form method="post" action="/auth/2fa/cancel">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="transactionId" value="@Model.TransactionId" />
+                <button type="submit" class="auth-link-button">Voltar ao login</button>
+            </form>
+        </div>
+    </main>
+    <script src="~/auth/js/login.js" asp-append-version="true"></script>
+</body>
+</html>

@@ -72,9 +72,87 @@ public sealed class AuthenticationAppService(
         string tenantId,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
-            return ServiceResult<AuthTokenResponse>.Fail(400, "O cabeçalho do tenant (X-Tenant-Id) é obrigatório.");
+        var authenticated = await ConfirmHostedTwoFactorAsync(request, tenantId, cancellationToken);
+        if (!authenticated.IsSuccess)
+            return ServiceResult<AuthTokenResponse>.Fail(authenticated.StatusCode, authenticated.Errors);
 
+        return await IssueValidatedIdentityTokenAsync(authenticated.Value!, tenantId, cancellationToken);
+    }
+
+    private async Task<ServiceResult<AuthTokenResponse>> IssuePasswordGrantAsync(
+        TokenRequest request,
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        var authenticated = await BeginHostedPasswordAuthenticationAsync(
+            request.Username,
+            request.Password,
+            tenantId,
+            cancellationToken);
+
+        if (!authenticated.IsSuccess)
+            return ServiceResult<AuthTokenResponse>.Fail(authenticated.StatusCode, authenticated.Errors);
+
+        if (authenticated.Value!.Challenge is { } challenge)
+            return ServiceResult<AuthTokenResponse>.Ok(AuthTokenResponse.TwoFactorRequired(challenge));
+
+        return await IssueValidatedIdentityTokenAsync(authenticated.Value, tenantId, cancellationToken);
+    }
+
+    public async Task<ServiceResult<HostedPasswordAuthenticationResult>> BeginHostedPasswordAuthenticationAsync(
+        string? username,
+        string? password,
+        string tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            return ServiceResult<HostedPasswordAuthenticationResult>.Fail(400, "Username e password são obrigatórios.");
+
+        var outcome = await credentialValidator.ValidateAsync(
+            tenantId,
+            username.Trim().ToLowerInvariant(),
+            password,
+            cancellationToken);
+
+        if (!outcome.IsSuccess)
+        {
+            return outcome.Failure switch
+            {
+                CredentialValidationFailure.EmailNotConfirmed =>
+                    ServiceResult<HostedPasswordAuthenticationResult>.Fail(403, "Confirme o email antes de entrar."),
+                _ => ServiceResult<HostedPasswordAuthenticationResult>.Fail(401, "Credenciais inválidas.")
+            };
+        }
+
+        var credentials = outcome.Success!;
+        TwoFactorChallengeDto? challenge = null;
+        if (await RequiresTwoFactorAsync(tenantId, credentials, cancellationToken))
+        {
+            challenge = await twoFactorChallengeService.CreateEmailChallengeAsync(
+                new TwoFactorChallengeSubject(
+                    TwoFactorSubjectTypes.TenantUser,
+                    credentials.UserId,
+                    tenantId,
+                    credentials.Email,
+                    credentials.Username),
+                TwoFactorChallengePurposes.Login,
+                cancellationToken);
+        }
+
+        return ServiceResult<HostedPasswordAuthenticationResult>.Ok(
+            new HostedPasswordAuthenticationResult(
+                credentials.UserId,
+                credentials.Email,
+                credentials.Username,
+                challenge,
+                Roles: credentials.Roles));
+    }
+
+    public async Task<ServiceResult<HostedPasswordAuthenticationResult>> ConfirmHostedTwoFactorAsync(
+        ConfirmTwoFactorRequest request,
+        string tenantId,
+        CancellationToken cancellationToken = default)
+    {
         var verify = await twoFactorChallengeService.VerifyAsync(
             request.ChallengeId ?? string.Empty,
             request.Code ?? string.Empty,
@@ -84,86 +162,69 @@ public sealed class AuthenticationAppService(
             cancellationToken);
 
         if (!verify.IsSuccess)
-            return ServiceResult<AuthTokenResponse>.Fail(verify.StatusCode, verify.Errors);
+            return ServiceResult<HostedPasswordAuthenticationResult>.Fail(verify.StatusCode, verify.Errors);
 
         var challenge = verify.Value!;
         var identity = await ResolveUserIdentityAsync(tenantId.Trim(), challenge.SubjectId, cancellationToken);
         if (identity is null)
-            return ServiceResult<AuthTokenResponse>.Fail(401, "Conta inválida.");
+            return ServiceResult<HostedPasswordAuthenticationResult>.Fail(401, "Conta inválida.");
 
-        var profile = TokenIssuanceProfile.ForPasswordGrant(
-            jwtOptions.Value,
-            registrationOptions.Value,
-            tenantId.Trim(),
-            identity.Value.Roles,
-            challenge.SubjectId,
-            identity.Value.Email,
-            identity.Value.Username);
-
-        var issued = await IssueTokensAsync(
-            tenantId.Trim(),
-            profile,
-            challenge.SubjectId,
-            TokenSubjectTypes.User,
-            cancellationToken,
-            CreateMfaClaims(challenge.Method));
-
-        return issued.IsSuccess
-            ? ServiceResult<AuthTokenResponse>.Ok(AuthTokenResponse.Issued(issued.Value!), issued.StatusCode, issued.Message)
-            : ServiceResult<AuthTokenResponse>.Fail(issued.StatusCode, issued.Errors);
+        return ServiceResult<HostedPasswordAuthenticationResult>.Ok(
+            new HostedPasswordAuthenticationResult(
+                challenge.SubjectId,
+                identity.Value.Email,
+                identity.Value.Username,
+                Challenge: null,
+                MfaMethod: challenge.Method,
+                Roles: identity.Value.Roles));
     }
 
-    private async Task<ServiceResult<AuthTokenResponse>> IssuePasswordGrantAsync(
-        TokenRequest request,
+    public async Task<ServiceResult<AuthTokenResponse>> IssueHostedIdentityTokenAsync(
+        string subjectId,
+        string? mfaMethod,
+        string tenantId,
+        CancellationToken cancellationToken = default)
+    {
+        var identity = await ResolveUserIdentityAsync(tenantId.Trim(), subjectId, cancellationToken);
+        if (identity is null)
+            return ServiceResult<AuthTokenResponse>.Fail(401, "Conta inválida.");
+
+        return await IssueValidatedIdentityTokenAsync(
+            new HostedPasswordAuthenticationResult(
+                subjectId,
+                identity.Value.Email,
+                identity.Value.Username,
+                Challenge: null,
+                MfaMethod: mfaMethod,
+                Roles: identity.Value.Roles),
+            tenantId,
+            cancellationToken);
+    }
+
+    private async Task<ServiceResult<AuthTokenResponse>> IssueValidatedIdentityTokenAsync(
+        HostedPasswordAuthenticationResult identity,
         string tenantId,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
-            return ServiceResult<AuthTokenResponse>.Fail(400, "Username e password são obrigatórios para grant_type=password.");
-
-        var normalizedUsername = request.Username.Trim().ToLowerInvariant();
-        var outcome = await credentialValidator.ValidateAsync(
-            tenantId,
-            normalizedUsername,
-            request.Password,
-            cancellationToken);
-
-        if (!outcome.IsSuccess)
-        {
-            return outcome.Failure switch
-            {
-                CredentialValidationFailure.EmailNotConfirmed =>
-                    ServiceResult<AuthTokenResponse>.Fail(403, "Confirme o email antes de entrar."),
-                _ => ServiceResult<AuthTokenResponse>.Fail(401, "Credenciais inválidas.")
-            };
-        }
-
-        var credentials = outcome.Success!;
-        var requiresTwoFactor = await RequiresTwoFactorAsync(tenantId, credentials, cancellationToken);
-        if (requiresTwoFactor)
-        {
-            var challenge = await twoFactorChallengeService.CreateEmailChallengeAsync(
-                new TwoFactorChallengeSubject(
-                    TwoFactorSubjectTypes.TenantUser,
-                    credentials.UserId,
-                    tenantId,
-                    credentials.Email,
-                    credentials.Username),
-                TwoFactorChallengePurposes.Login,
-                cancellationToken);
-
-            return ServiceResult<AuthTokenResponse>.Ok(AuthTokenResponse.TwoFactorRequired(challenge));
-        }
 
         var profile = TokenIssuanceProfile.ForPasswordGrant(
             jwtOptions.Value,
             registrationOptions.Value,
-            tenantId,
-            credentials.Roles,
-            credentials.UserId,
-            credentials.Email,
-            credentials.Username);
-        var issued = await IssueTokensAsync(tenantId, profile, credentials.UserId, TokenSubjectTypes.User, cancellationToken);
+            tenantId.Trim(),
+            identity.Roles ?? [],
+            identity.SubjectId,
+            identity.Email,
+            identity.Username);
+
+        var claims = string.IsNullOrWhiteSpace(identity.MfaMethod) ? null : CreateMfaClaims(identity.MfaMethod);
+        var issued = await IssueTokensAsync(
+            tenantId.Trim(),
+            profile,
+            identity.SubjectId,
+            TokenSubjectTypes.User,
+            cancellationToken,
+            claims);
+
         return issued.IsSuccess
             ? ServiceResult<AuthTokenResponse>.Ok(AuthTokenResponse.Issued(issued.Value!), issued.StatusCode, issued.Message)
             : ServiceResult<AuthTokenResponse>.Fail(issued.StatusCode, issued.Errors);
@@ -262,7 +323,7 @@ public sealed class AuthenticationAppService(
         var email = obj["email"] is JsonValue e && e.TryGetValue<string>(out var ev) ? ev : string.Empty;
         var username = obj["username"] is JsonValue u && u.TryGetValue<string>(out var uv) ? uv : string.Empty;
         var status = obj["status"] is JsonValue s && s.TryGetValue<string>(out var sv) ? sv : AccountStatuses.Active;
-        if (status is AccountStatuses.PendingConfirmation or AccountStatuses.Expired)
+        if (status is not AccountStatuses.Active and not AccountStatuses.Incomplete)
             return null;
 
         var roles = ReadRoles(obj);
