@@ -20,6 +20,9 @@ public sealed class OAuthClient
     /// <summary>Callbacks autorizados para o login hospedado. Lista vazia mantém o cliente sem authorization code.</summary>
     public List<string> RedirectUris { get; set; } = [];
 
+    /// <summary>Destinos autorizados apos logout central hospedado.</summary>
+    public List<string> PostLogoutRedirectUris { get; set; } = [];
+
     /// <summary>Escopos que podem ser solicitados no authorization code flow.</summary>
     public List<string> AllowedScopes { get; set; } = [];
 

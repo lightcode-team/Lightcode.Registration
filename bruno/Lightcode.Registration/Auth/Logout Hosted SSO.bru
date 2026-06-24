@@ -1,0 +1,27 @@
+meta {
+  name: Logout Hosted SSO
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/auth/logout?tenant_id={{tenantId}}&post_logout_redirect_uri={{postLogoutRedirectUri}}
+  body: none
+  auth: none
+}
+
+params:query {
+  tenant_id: {{tenantId}}
+  post_logout_redirect_uri: {{postLogoutRedirectUri}}
+}
+
+docs {
+  # Logout central SSO
+
+  Encerra a sessao SSO hospedada (`lc_sso`) no auth server.
+
+  - `tenant_id`: tenant da sessao.
+  - `post_logout_redirect_uri`: deve estar cadastrado em `post_logout_redirect_uris` do OAuth client.
+
+  Os apps clientes ainda devem limpar seus proprios access/refresh tokens.
+}

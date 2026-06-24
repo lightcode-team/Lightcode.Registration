@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/auth/login?response_type=code&tenant_id={{tenantId}}&client_id={{oauthClientId}}&redirect_uri=https://localhost:4200/auth/callback&scope=openid email&state=login&nonce={{oauthNonce}}&code_challenge={{pkceChallenge}}&code_challenge_method=S256
+  url: {{baseUrl}}/auth/login?response_type=code&tenant_id={{tenantId}}&client_id={{oauthClientId}}&redirect_uri={{hostedRedirectUri}}&scope={{hostedScope}}&state={{oauthState}}&nonce={{oauthNonce}}&code_challenge={{pkceChallenge}}&code_challenge_method=S256&prompt={{oauthPrompt}}&max_age={{oauthMaxAge}}
   body: none
   auth: none
 }
@@ -14,17 +14,19 @@ params:query {
   response_type: code
   tenant_id: {{tenantId}}
   client_id: {{oauthClientId}}
-  redirect_uri: https://localhost:4200/auth/callback
-  scope: openid email
-  state: login
+  redirect_uri: {{hostedRedirectUri}}
+  scope: {{hostedScope}}
+  state: {{oauthState}}
   nonce: {{oauthNonce}}
   code_challenge: {{pkceChallenge}}
   code_challenge_method: S256
+  prompt: {{oauthPrompt}}
+  max_age: {{oauthMaxAge}}
 }
 
 vars:pre-request {
-  hostedRedirectUri: https://localhost:4200/auth/callback
-  hostedScope: openid email
+  oauthPrompt: 
+  oauthMaxAge: 
 }
 
 docs {
@@ -43,6 +45,8 @@ docs {
   - `nonce={{oauthNonce}}`
   - `code_challenge={{pkceChallenge}}`
   - `code_challenge_method=S256`
+  - `prompt={{oauthPrompt}}` opcional: `login` forca senha, `none` exige sessao SSO existente.
+  - `max_age={{oauthMaxAge}}` opcional: idade maxima da autenticacao em segundos.
   
   O script gera `pkceVerifier`, `pkceChallenge`, `oauthState` e `oauthNonce`. Guarde `pkceVerifier`: ele sera usado no exchange em `/api/auth/token` com `grant_type=authorization_code`.
 }

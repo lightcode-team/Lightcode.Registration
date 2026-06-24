@@ -41,6 +41,7 @@ public static class DependencyInjection
         services.AddScoped<IHostedAuthSessionRepository, MongoHostedAuthSessionRepository>();
         services.AddScoped<IAuthorizationCodeRepository, MongoAuthorizationCodeRepository>();
         services.AddScoped<IAuthAuditLogRepository, MongoAuthAuditLogRepository>();
+        services.AddScoped<ISsoSessionRepository, MongoSsoSessionRepository>();
         services.AddScoped<IOAuthClientAppService, OAuthClientAppService>();
         services.AddScoped<IRefreshTokenRepository, MongoRefreshTokenRepository>();
         services.AddScoped<ITwoFactorChallengeRepository, MongoTwoFactorChallengeRepository>();

@@ -1,0 +1,84 @@
+%%{init: {"theme":"base","securityLevel":"strict","deterministicIds":true,"deterministicIDSeed":"lightcode-app-sso-integration-v1","themeVariables":{"fontFamily":"Inter, ui-sans-serif, system-ui","fontSize":"15px","background":"#ffffff","primaryColor":"#f8fafc","primaryTextColor":"#0f172a","primaryBorderColor":"#cbd5e1","secondaryColor":"#eff6ff","secondaryTextColor":"#1e3a8a","secondaryBorderColor":"#93c5fd","tertiaryColor":"#ecfdf5","tertiaryTextColor":"#065f46","tertiaryBorderColor":"#86efac","lineColor":"#64748b","textColor":"#0f172a"}}}%%
+flowchart TD
+    Start([Inicio: integrar um app ao SSO Lightcode])
+
+    Config["1. Configurar OAuthClient<br/>Bruno: OAuth Clients / Create ou Update"]
+    ConfigFields["Informar<br/>redirect_uris = callback exato do app<br/>post_logout_redirect_uris = callback de logout<br/>allowed_scopes = openid email<br/>require_consent = false"]
+    SaveVars["Salvar variaveis no app<br/>tenant_id<br/>client_id<br/>redirect_uri<br/>post_logout_redirect_uri<br/>scope"]
+
+    AppButton["2. App exibe botao Entrar com SSO"]
+    CreatePkce["3. App gera dados efemeros<br/>state aleatorio<br/>nonce aleatorio<br/>code_verifier aleatorio<br/>code_challenge = S256(code_verifier)"]
+    StoreTemp["Guardar temporarios com seguranca<br/>state e code_verifier<br/>por aba/sessao curta<br/>nunca enviar code_verifier na URL"]
+
+    BuildUrl["4. Montar authorization request<br/>GET /auth/login<br/>response_type=code<br/>tenant_id<br/>client_id<br/>redirect_uri<br/>scope<br/>state<br/>nonce<br/>code_challenge<br/>code_challenge_method=S256"]
+    OptionalParams{"Precisa comportamento especial?"}
+    PromptLogin["Adicionar prompt=login<br/>forca senha mesmo com SSO ativo"]
+    PromptNone["Adicionar prompt=none<br/>tenta login silencioso por redirect<br/>se falhar volta error=login_required"]
+    MaxAge["Adicionar max_age=N<br/>exige autenticacao recente"]
+
+    RedirectAuth["5. Redirecionar browser para /auth/login"]
+    AuthServer["Auth Server<br/>valida cliente, redirect_uri, scope e PKCE<br/>usa login/2FA ou sessao lc_sso"]
+    Callback{"6. Callback do app recebe resposta"}
+
+    ErrorCallback["Callback com erro<br/>error=login_required ou outro erro OAuth"]
+    HandleError["App encerra tentativa<br/>limpa state/code_verifier temporarios<br/>mostra acao de login interativo"]
+
+    SuccessCallback["Callback com code + state"]
+    ValidateState{"state recebido bate com state salvo?"}
+    Reject["Rejeitar callback<br/>limpar temporarios<br/>nao chamar token endpoint"]
+
+    Exchange["7. Trocar code por tokens<br/>POST /api/auth/token<br/>X-Tenant-Id: tenant_id"]
+    ExchangeBody["Body<br/>grant_type=authorization_code<br/>client_id<br/>code<br/>redirect_uri igual ao inicial<br/>code_verifier original"]
+    TokenResult{"Exchange aprovado?"}
+
+    TokenFail["Falha no exchange<br/>limpar temporarios<br/>reiniciar login se necessario"]
+    StoreSession["8. App cria sessao local propria<br/>guardar access token e refresh token conforme arquitetura do app<br/>preferir backend/session cookie para web server-side"]
+    Cleanup["Apagar code_verifier, state e authorization code"]
+
+    UseApi["9. Chamar APIs do tenant<br/>Authorization: Bearer access_token"]
+    TokenExpired{"Access token expirou?"}
+    Refresh["10. Renovar token<br/>grant_type=refresh_token<br/>refresh_token atual"]
+    RefreshFail{"Refresh falhou?"}
+    Continue["Continuar sessao do app"]
+    ReLogin["Limpar sessao local<br/>voltar para Entrar com SSO"]
+
+    LogoutStart["11. Logout no app"]
+    ClearLocal["Limpar sessao local do app<br/>access/refresh token/cache"]
+    CentralLogout["Chamar logout central<br/>GET /auth/logout?tenant_id=...<br/>&post_logout_redirect_uri=..."]
+    LogoutCallback["App recebe logout callback<br/>usuario fica deslogado localmente e no SSO"]
+
+    Start --> Config --> ConfigFields --> SaveVars --> AppButton --> CreatePkce --> StoreTemp --> BuildUrl --> OptionalParams
+    OptionalParams -- "Nao" --> RedirectAuth
+    OptionalParams -- "Forcar senha" --> PromptLogin --> RedirectAuth
+    OptionalParams -- "Login silencioso" --> PromptNone --> RedirectAuth
+    OptionalParams -- "Autenticacao recente" --> MaxAge --> RedirectAuth
+
+    RedirectAuth --> AuthServer --> Callback
+    Callback -- "error" --> ErrorCallback --> HandleError --> AppButton
+    Callback -- "code + state" --> SuccessCallback --> ValidateState
+    ValidateState -- "Nao" --> Reject --> AppButton
+    ValidateState -- "Sim" --> Exchange --> ExchangeBody --> TokenResult
+    TokenResult -- "Nao" --> TokenFail --> AppButton
+    TokenResult -- "Sim" --> StoreSession --> Cleanup --> UseApi
+    UseApi --> TokenExpired
+    TokenExpired -- "Nao" --> Continue --> UseApi
+    TokenExpired -- "Sim" --> Refresh --> RefreshFail
+    RefreshFail -- "Nao" --> Continue
+    RefreshFail -- "Sim" --> ReLogin --> AppButton
+
+    UseApi --> LogoutStart --> ClearLocal --> CentralLogout --> LogoutCallback
+
+    subgraph Security["Cuidados obrigatorios no app"]
+        S1["Validar state antes do exchange"]
+        S2["code_verifier nunca vai na URL"]
+        S3["redirect_uri no exchange deve ser identico ao inicial"]
+        S4["authorization code e de uso unico"]
+        S5["JWT/refresh token nao devem ser salvos em URL ou logs"]
+        S6["Logout local do app nao substitui logout central"]
+    end
+
+    Security -.-> StoreTemp
+    Security -.-> ValidateState
+    Security -.-> Exchange
+    Security -.-> StoreSession
+    Security -.-> LogoutStart

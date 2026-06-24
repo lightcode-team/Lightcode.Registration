@@ -11,6 +11,8 @@ public sealed class HostedAuthTransaction
     public string State { get; set; } = default!;
     public string? Nonce { get; set; }
     public string? Scope { get; set; }
+    public string? Prompt { get; set; }
+    public int? MaxAgeSeconds { get; set; }
     public string CodeChallenge { get; set; } = default!;
     public string CodeChallengeMethod { get; set; } = "S256";
     public string CorrelationId { get; set; } = default!;
@@ -34,9 +36,31 @@ public sealed class HostedAuthSession
     public string? ChallengeId { get; set; }
     public string? VerificationType { get; set; }
     public string? DestinationHint { get; set; }
+    public string? MfaMethod { get; set; }
     public DateTime? ChallengeCreatedAtUtc { get; set; }
     public DateTime CreatedAtUtc { get; set; }
     public DateTime ExpiresAtUtc { get; set; }
+}
+
+public sealed class SsoSession
+{
+    public const string CollectionName = "SsoSessions";
+
+    public string Id { get; set; } = default!;
+    public string TenantId { get; set; } = default!;
+    public string SubjectId { get; set; } = default!;
+    public string? SubjectEmail { get; set; }
+    public string? SubjectUsername { get; set; }
+    public DateTime CreatedAtUtc { get; set; }
+    public DateTime LastSeenAtUtc { get; set; }
+    public DateTime AuthTimeUtc { get; set; }
+    public DateTime ExpiresAtUtc { get; set; }
+    public string? MfaMethod { get; set; }
+    public bool TwoFactorSatisfied { get; set; }
+    public DateTime? RevokedAtUtc { get; set; }
+    public string CorrelationId { get; set; } = default!;
+    public string? UserAgentHash { get; set; }
+    public string? IpHash { get; set; }
 }
 
 public static class HostedAuthStages
@@ -106,4 +130,11 @@ public static class AuthAuditEventTypes
     public const string AuthorizationCodeFailed = "authorization_code_failed";
     public const string PasswordRecoveryRequested = "password_recovery_requested";
     public const string PasswordResetCompleted = "password_reset_completed";
+    public const string SsoSessionCreated = "sso_session_created";
+    public const string SsoSessionReused = "sso_session_reused";
+    public const string SsoSessionRevoked = "sso_session_revoked";
+    public const string SsoSessionExpired = "sso_session_expired";
+    public const string SsoPromptLogin = "sso_prompt_login";
+    public const string SsoPromptNoneFailed = "sso_prompt_none_failed";
+    public const string LogoutCompleted = "logout_completed";
 }

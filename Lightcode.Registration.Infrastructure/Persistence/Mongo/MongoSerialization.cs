@@ -205,6 +205,16 @@ public static class MongoSerialization
                 cm.MapIdProperty(x => x.Id);
             });
         }
+
+        if (!BsonClassMap.IsClassMapRegistered(typeof(SsoSession)))
+        {
+            BsonClassMap.RegisterClassMap<SsoSession>(cm =>
+            {
+                cm.AutoMap();
+                cm.SetIgnoreExtraElements(true);
+                cm.MapIdProperty(x => x.Id);
+            });
+        }
     }
 
     private static void RegisterFrontConfig()

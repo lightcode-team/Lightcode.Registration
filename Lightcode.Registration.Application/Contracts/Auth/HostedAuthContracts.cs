@@ -9,7 +9,14 @@ public sealed record HostedAuthorizationRequest(
     string? Nonce,
     string? Scope,
     string? CodeChallenge,
-    string? CodeChallengeMethod);
+    string? CodeChallengeMethod,
+    string? Prompt = null,
+    string? MaxAge = null);
+
+public sealed record HostedSsoContext(
+    string? ExistingSessionId,
+    string? UserAgentHash,
+    string? IpHash);
 
 public sealed record HostedPasswordAuthenticationResult(
     string SubjectId,
@@ -25,4 +32,8 @@ public sealed record HostedPasswordAuthenticationResult(
 public sealed record HostedAuthOperationResult(
     bool Completed,
     string? RedirectUrl,
-    TwoFactorChallengeDto? Challenge);
+    TwoFactorChallengeDto? Challenge,
+    string? SsoSessionId = null,
+    DateTime? SsoSessionExpiresAtUtc = null);
+
+public sealed record HostedLogoutResult(string? RedirectUrl);

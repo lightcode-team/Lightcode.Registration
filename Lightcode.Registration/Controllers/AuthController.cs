@@ -8,6 +8,8 @@ using Lightcode.Registration.Models;
 using Lightcode.Registration.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Lightcode.Registration.Controllers;
 
@@ -18,6 +20,8 @@ public sealed class AuthController(
     IFrontConfigAppService frontConfigAppService,
     HumanAuthRateLimiter rateLimiter) : BaseController( )
 {
+    private const string SsoCookieName = "lc_sso";
+
     [HttpGet("/auth/login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login(
@@ -30,6 +34,8 @@ public sealed class AuthController(
         [FromQuery] string? nonce,
         [FromQuery(Name = "code_challenge")] string? codeChallenge,
         [FromQuery(Name = "code_challenge_method")] string? codeChallengeMethod,
+        [FromQuery] string? prompt,
+        [FromQuery(Name = "max_age")] string? maxAge,
         [FromQuery] string? transactionId,
         CancellationToken cancellationToken)
     {
@@ -51,7 +57,9 @@ public sealed class AuthController(
                 nonce,
                 scope,
                 codeChallenge,
-                codeChallengeMethod),
+                codeChallengeMethod,
+                prompt,
+                maxAge),
             cancellationToken);
         if (!started.IsSuccess)
         {
@@ -61,6 +69,23 @@ public sealed class AuthController(
                 FrontConfig = await frontConfigAppService.ResolveAsync(tenantId, cancellationToken),
                 ErrorMessage = string.Join(' ', started.Errors)
             });
+        }
+
+        if (!string.Equals(started.Value!.Prompt, "login", StringComparison.Ordinal))
+        {
+            var sso = await hostedAuthenticationAppService.CompleteFromSsoAsync(
+                started.Value.Id,
+                ReadSsoCookie(),
+                CreateSsoContext(),
+                cancellationToken);
+            if (sso.IsSuccess)
+            {
+                WriteSsoCookie(sso.Value!.SsoSessionId, sso.Value.SsoSessionExpiresAtUtc);
+                return Redirect(sso.Value.RedirectUrl!);
+            }
+
+            if (string.Equals(started.Value.Prompt, "none", StringComparison.Ordinal))
+                return Redirect(BuildAuthorizationErrorRedirect(started.Value, "login_required"));
         }
 
         return View("~/Views/Auth/Login.cshtml", await CreateLoginModelAsync(started.Value!, cancellationToken));
@@ -92,6 +117,7 @@ public sealed class AuthController(
             transaction.Id,
             model.Username,
             model.Password,
+            CreateSsoContext(),
             cancellationToken);
         model.Password = string.Empty;
         if (!result.IsSuccess)
@@ -101,7 +127,10 @@ public sealed class AuthController(
         }
 
         if (result.Value!.Completed)
+        {
+            WriteSsoCookie(result.Value.SsoSessionId, result.Value.SsoSessionExpiresAtUtc);
             return Redirect(result.Value.RedirectUrl!);
+        }
 
         return RedirectToAction(nameof(TwoFactor), new { transactionId = transaction.Id });
     }
@@ -146,6 +175,7 @@ public sealed class AuthController(
         var result = await hostedAuthenticationAppService.ConfirmTwoFactorAsync(
             transaction.Id,
             model.Code,
+            CreateSsoContext(),
             cancellationToken);
         model.Code = string.Empty;
         if (!result.IsSuccess)
@@ -154,8 +184,36 @@ public sealed class AuthController(
             return View("~/Views/Auth/TwoFactor.cshtml", model);
         }
 
+        WriteSsoCookie(result.Value!.SsoSessionId, result.Value.SsoSessionExpiresAtUtc);
         return Redirect(result.Value!.RedirectUrl!);
     }
+
+    [HttpGet("/auth/logout")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Logout(
+        [FromQuery(Name = "tenant_id")] string? tenantId,
+        [FromQuery(Name = "post_logout_redirect_uri")] string? postLogoutRedirectUri,
+        CancellationToken cancellationToken)
+    {
+        var result = await hostedAuthenticationAppService.LogoutAsync(
+            tenantId,
+            ReadSsoCookie(),
+            postLogoutRedirectUri,
+            cancellationToken);
+        DeleteSsoCookie();
+        return result.Value?.RedirectUrl is { Length: > 0 } redirectUrl
+            ? Redirect(redirectUrl)
+            : Ok("Logout concluido.");
+    }
+
+    [HttpPost("/auth/logout")]
+    [AllowAnonymous]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> LogoutPost(
+        [FromForm(Name = "tenant_id")] string? tenantId,
+        [FromForm(Name = "post_logout_redirect_uri")] string? postLogoutRedirectUri,
+        CancellationToken cancellationToken)
+        => await Logout(tenantId, postLogoutRedirectUri, cancellationToken);
 
     [HttpPost("/auth/2fa/resend")]
     [AllowAnonymous]
@@ -327,5 +385,60 @@ public sealed class AuthController(
             VerificationType = session.VerificationType ?? "email_code",
             FrontConfig = await frontConfigAppService.ResolveAsync(session.TenantId, cancellationToken)
         };
+    }
+
+    private HostedSsoContext CreateSsoContext() =>
+        new(
+            ReadSsoCookie(),
+            HashForCookieContext(Request.Headers.UserAgent.ToString()),
+            HashForCookieContext(HttpContext.Connection.RemoteIpAddress?.ToString()));
+
+    private string? ReadSsoCookie() =>
+        Request.Cookies.TryGetValue(SsoCookieName, out var value) && !string.IsNullOrWhiteSpace(value)
+            ? value.Trim()
+            : null;
+
+    private void WriteSsoCookie(string? sessionId, DateTime? expiresAtUtc)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId) || expiresAtUtc is null)
+            return;
+
+        Response.Cookies.Append(
+            SsoCookieName,
+            sessionId,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Lax,
+                Expires = new DateTimeOffset(DateTime.SpecifyKind(expiresAtUtc.Value, DateTimeKind.Utc)),
+                IsEssential = true
+            });
+    }
+
+    private void DeleteSsoCookie() =>
+        Response.Cookies.Delete(
+            SsoCookieName,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Lax,
+                IsEssential = true
+            });
+
+    private static string BuildAuthorizationErrorRedirect(HostedAuthTransaction transaction, string error)
+    {
+        var separator = transaction.RedirectUri.Contains('?', StringComparison.Ordinal) ? '&' : '?';
+        return $"{transaction.RedirectUri}{separator}error={Uri.EscapeDataString(error)}&state={Uri.EscapeDataString(transaction.State)}";
+    }
+
+    private static string? HashForCookieContext(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value.Trim()));
+        return Convert.ToHexString(hash).ToLowerInvariant()[..12];
     }
 }

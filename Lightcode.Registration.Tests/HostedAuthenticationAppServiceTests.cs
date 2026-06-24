@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Lightcode.Registration.Application.Abstractions;
+using Lightcode.Registration.Application.Accounts;
 using Lightcode.Registration.Application.Common;
 using Lightcode.Registration.Application.Contracts.Auth;
 using Lightcode.Registration.Application.Security;
@@ -131,11 +132,86 @@ public sealed class HostedAuthenticationAppServiceTests
         context.Codes.InsertCount.Should().Be(1);
     }
 
+    [Fact]
+    public async Task Login_creates_sso_session_and_second_client_reuses_it()
+    {
+        var context = new Context();
+        var first = await context.Service.StartAsync(CreateRequest());
+        var login = await context.Service.LoginAsync(
+            first.Value!.Id,
+            "user",
+            "password",
+            new HostedSsoContext(null, "ua-1", "ip-1"));
+
+        login.Value!.SsoSessionId.Should().NotBeNullOrWhiteSpace();
+        context.SsoSessions.Items.Should().ContainKey(login.Value.SsoSessionId!);
+
+        var second = await context.Service.StartAsync(CreateRequest(state: "state-2"));
+        var reused = await context.Service.CompleteFromSsoAsync(
+            second.Value!.Id,
+            login.Value.SsoSessionId,
+            new HostedSsoContext(login.Value.SsoSessionId, "ua-1", "ip-1"));
+
+        reused.IsSuccess.Should().BeTrue();
+        reused.Value!.Completed.Should().BeTrue();
+        reused.Value.RedirectUrl.Should().Contain("state=state-2");
+        context.Audit.Items.Should().Contain(x => x.EventType == AuthAuditEventTypes.SsoSessionReused);
+    }
+
+    [Fact]
+    public async Task Prompt_login_does_not_reuse_sso_session()
+    {
+        var context = new Context();
+        var first = await context.Service.StartAsync(CreateRequest());
+        var login = await context.Service.LoginAsync(first.Value!.Id, "user", "password", new HostedSsoContext(null, null, null));
+
+        var forced = await context.Service.StartAsync(CreateRequest(prompt: "login"));
+        var reused = await context.Service.CompleteFromSsoAsync(
+            forced.Value!.Id,
+            login.Value!.SsoSessionId,
+            new HostedSsoContext(login.Value.SsoSessionId, null, null));
+
+        reused.IsSuccess.Should().BeFalse();
+        context.Codes.InsertCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Prompt_none_without_sso_returns_login_required()
+    {
+        var context = new Context();
+        var started = await context.Service.StartAsync(CreateRequest(prompt: "none"));
+
+        var result = await context.Service.CompleteFromSsoAsync(started.Value!.Id, null, null);
+
+        result.IsSuccess.Should().BeFalse();
+        result.Errors.Should().Contain("login_required");
+        context.Audit.Items.Should().Contain(x => x.EventType == AuthAuditEventTypes.SsoPromptNoneFailed);
+    }
+
+    [Fact]
+    public async Task Max_age_expired_blocks_sso_reuse()
+    {
+        var context = new Context();
+        var first = await context.Service.StartAsync(CreateRequest());
+        var login = await context.Service.LoginAsync(first.Value!.Id, "user", "password", new HostedSsoContext(null, null, null));
+        context.SsoSessions.Items[login.Value!.SsoSessionId!].AuthTimeUtc = DateTime.UtcNow.AddMinutes(-5);
+
+        var started = await context.Service.StartAsync(CreateRequest(maxAge: "1"));
+        var result = await context.Service.CompleteFromSsoAsync(
+            started.Value!.Id,
+            login.Value.SsoSessionId,
+            new HostedSsoContext(login.Value.SsoSessionId, null, null));
+
+        result.IsSuccess.Should().BeFalse();
+    }
+
     private static HostedAuthorizationRequest CreateRequest(
         string redirectUri = "https://app.example/callback",
         string state = "state-1",
         string nonce = "nonce-1",
-        string? scope = "openid") =>
+        string? scope = "openid",
+        string? prompt = null,
+        string? maxAge = null) =>
         new(
             "code",
             "tenant-1",
@@ -145,7 +221,9 @@ public sealed class HostedAuthenticationAppServiceTests
             nonce,
             scope,
             OAuthPkce.CreateChallenge(Verifier),
-            "S256");
+            "S256",
+            prompt,
+            maxAge);
 
     private static string ReadQueryValue(string url, string key)
     {
@@ -167,6 +245,8 @@ public sealed class HostedAuthenticationAppServiceTests
                 Sessions,
                 Codes,
                 Audit,
+                SsoSessions,
+                UserAccounts,
                 Challenges,
                 ChallengeRepository,
                 Tokens);
@@ -179,6 +259,8 @@ public sealed class HostedAuthenticationAppServiceTests
         public FakeSessions Sessions { get; } = new();
         public FakeCodes Codes { get; } = new();
         public FakeAudit Audit { get; } = new();
+        public FakeSsoSessions SsoSessions { get; } = new();
+        public FakeUserAccounts UserAccounts { get; } = new();
         public FakeChallenges Challenges { get; } = new();
         public FakeChallengeRepository ChallengeRepository { get; } = new();
         public FakeTokens Tokens { get; } = new();
@@ -304,6 +386,79 @@ public sealed class HostedAuthenticationAppServiceTests
             Items.Add(entry);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class FakeSsoSessions : ISsoSessionRepository
+    {
+        public Dictionary<string, SsoSession> Items { get; } = new(StringComparer.Ordinal);
+
+        public Task InsertAsync(SsoSession session, CancellationToken cancellationToken = default)
+        {
+            Items[session.Id] = session;
+            return Task.CompletedTask;
+        }
+
+        public Task<SsoSession?> FindActiveAsync(
+            string id,
+            string tenantId,
+            DateTime idleCutoffUtc,
+            DateTime nowUtc,
+            CancellationToken cancellationToken = default)
+        {
+            if (!Items.TryGetValue(id, out var session)
+                || session.TenantId != tenantId
+                || session.RevokedAtUtc is not null
+                || session.ExpiresAtUtc <= nowUtc
+                || session.LastSeenAtUtc <= idleCutoffUtc)
+                return Task.FromResult<SsoSession?>(null);
+
+            return Task.FromResult<SsoSession?>(session);
+        }
+
+        public Task TouchAsync(string id, DateTime lastSeenAtUtc, CancellationToken cancellationToken = default)
+        {
+            if (Items.TryGetValue(id, out var session))
+                session.LastSeenAtUtc = lastSeenAtUtc;
+            return Task.CompletedTask;
+        }
+
+        public Task RevokeAsync(string id, DateTime revokedAtUtc, CancellationToken cancellationToken = default)
+        {
+            if (Items.TryGetValue(id, out var session))
+                session.RevokedAtUtc = revokedAtUtc;
+            return Task.CompletedTask;
+        }
+
+        public Task RevokeBySubjectAsync(string tenantId, string subjectId, DateTime revokedAtUtc, CancellationToken cancellationToken = default)
+        {
+            foreach (var session in Items.Values.Where(x => x.TenantId == tenantId && x.SubjectId == subjectId))
+                session.RevokedAtUtc = revokedAtUtc;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeUserAccounts : IUserAccountWriter
+    {
+        public string Status { get; set; } = AccountStatuses.Active;
+
+        public Task<string?> GetUserStatusAsync(string tenantId, string userId, CancellationToken cancellationToken = default) =>
+            Task.FromResult<string?>(Status);
+
+        public Task<bool> EmailExistsAsync(string tenantId, string email, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<bool> UsernameExistsAsync(string tenantId, string username, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<string> InsertAsync(string tenantId, string documentJson, CancellationToken cancellationToken = default) => Task.FromResult("user-1");
+        public Task<string?> GetUserDocumentJsonAsync(string tenantId, string userId, CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
+        public Task ReplaceUserDocumentAsync(string tenantId, string userId, string documentJson, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<bool> EmailTakenByOtherUserAsync(string tenantId, string email, string excludeUserId, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<bool> UsernameTakenByOtherUserAsync(string tenantId, string username, string excludeUserId, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task MarkExpiryReminderSentAsync(string tenantId, string userId, int reminderKind, DateTime sentUtc, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task<bool> TryMarkRegistrationExpiredAsync(string tenantId, string userId, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<bool> TryConfirmEmailAsync(string tenantId, string email, string secretPlain, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<IReadOnlyList<string>> ListUserDocumentsJsonAsync(string tenantId, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<string>>([]);
+        public Task<string?> TryGetActiveUserEmailAsync(string tenantId, string? email, string? username, CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
+        public Task<string?> TryGetActiveUserIdByEmailAsync(string tenantId, string email, CancellationToken cancellationToken = default) => Task.FromResult<string?>(null);
+        public Task<bool> TrySetPasswordResetTokenAsync(string tenantId, string email, string tokenHash, DateTime expiresAtUtc, CancellationToken cancellationToken = default) => Task.FromResult(false);
+        public Task<bool> TryResetPasswordAsync(string tenantId, string email, string tokenPlain, string newPasswordHash, CancellationToken cancellationToken = default) => Task.FromResult(false);
     }
 
     private sealed class FakeChallenges : ITwoFactorChallengeService

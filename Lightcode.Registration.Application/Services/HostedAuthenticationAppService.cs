@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Diagnostics;
 using System.Text;
 using Lightcode.Registration.Application.Abstractions;
+using Lightcode.Registration.Application.Accounts;
 using Lightcode.Registration.Application.Common;
 using Lightcode.Registration.Application.Contracts.Auth;
 using Lightcode.Registration.Application.OAuthClients;
@@ -18,6 +19,8 @@ public sealed class HostedAuthenticationAppService(
     IHostedAuthSessionRepository sessionRepository,
     IAuthorizationCodeRepository authorizationCodeRepository,
     IAuthAuditLogRepository auditLogRepository,
+    ISsoSessionRepository ssoSessionRepository,
+    IUserAccountWriter userAccountWriter,
     ITwoFactorChallengeService twoFactorChallengeService,
     ITwoFactorChallengeRepository twoFactorChallengeRepository,
     ISecureTokenGenerator tokenGenerator) : IHostedAuthenticationAppService
@@ -26,14 +29,37 @@ public sealed class HostedAuthenticationAppService(
     private const string PublicInvalidLogin = "Credenciais invalidas ou fluxo expirado.";
     private const string PublicInvalidTwoFactor = "Codigo 2FA invalido ou expirado.";
     private const string PublicInvalidCode = "Authorization code invalido ou expirado.";
+    private const string PublicLoginRequired = "login_required";
     private static readonly TimeSpan TransactionLifetime = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan AuthorizationCodeLifetime = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan SsoSessionLifetime = TimeSpan.FromHours(8);
+    private static readonly TimeSpan SsoIdleTimeout = TimeSpan.FromMinutes(30);
 
     public async Task<ServiceResult<HostedAuthTransaction>> StartAsync(
         HostedAuthorizationRequest request,
         CancellationToken cancellationToken = default)
     {
         var correlationId = Guid.NewGuid().ToString("N");
+        var prompt = NormalizeOptional(request.Prompt);
+        if (prompt is not null
+            && !string.Equals(prompt, "login", StringComparison.Ordinal)
+            && !string.Equals(prompt, "none", StringComparison.Ordinal))
+        {
+            await AuditAsync(AuthAuditEventTypes.HostedAuthorizationRejected, "failure", correlationId, detail: "invalid_prompt", cancellationToken: cancellationToken);
+            return ServiceResult<HostedAuthTransaction>.Fail(400, PublicInvalidAuthorization);
+        }
+
+        int? maxAgeSeconds = null;
+        if (!string.IsNullOrWhiteSpace(request.MaxAge)
+            && (!int.TryParse(request.MaxAge.Trim(), out var parsedMaxAge) || parsedMaxAge < 0))
+        {
+            await AuditAsync(AuthAuditEventTypes.HostedAuthorizationRejected, "failure", correlationId, detail: "invalid_max_age", cancellationToken: cancellationToken);
+            return ServiceResult<HostedAuthTransaction>.Fail(400, PublicInvalidAuthorization);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.MaxAge))
+            maxAgeSeconds = int.Parse(request.MaxAge.Trim());
+
         if (!string.Equals(request.ResponseType?.Trim(), "code", StringComparison.Ordinal)
             || string.IsNullOrWhiteSpace(request.TenantId)
             || string.IsNullOrWhiteSpace(request.ClientId)
@@ -90,6 +116,8 @@ public sealed class HostedAuthenticationAppService(
             State = request.State.Trim(),
             Nonce = NormalizeOptional(request.Nonce),
             Scope = scope.Scope,
+            Prompt = prompt,
+            MaxAgeSeconds = maxAgeSeconds,
             CodeChallenge = request.CodeChallenge!.Trim(),
             CodeChallengeMethod = "S256",
             CorrelationId = correlationId,
@@ -122,9 +150,24 @@ public sealed class HostedAuthenticationAppService(
             metadata: new Dictionary<string, string>
             {
                 ["scope"] = transaction.Scope ?? string.Empty,
-                ["nonce_present"] = string.IsNullOrWhiteSpace(transaction.Nonce) ? "false" : "true"
+                ["nonce_present"] = string.IsNullOrWhiteSpace(transaction.Nonce) ? "false" : "true",
+                ["prompt"] = transaction.Prompt ?? string.Empty,
+                ["max_age"] = transaction.MaxAgeSeconds?.ToString() ?? string.Empty
             },
             cancellationToken: cancellationToken);
+
+        if (string.Equals(transaction.Prompt, "login", StringComparison.Ordinal))
+        {
+            await AuditAsync(
+                AuthAuditEventTypes.SsoPromptLogin,
+                "info",
+                correlationId,
+                tenantId,
+                clientId,
+                transaction.Id,
+                session.Id,
+                cancellationToken: cancellationToken);
+        }
 
         Trace.TraceInformation(
             "Hosted authorization started. tenant={0} client={1} transaction={2} session={3} correlation={4}",
@@ -155,6 +198,14 @@ public sealed class HostedAuthenticationAppService(
         string transactionId,
         string? username,
         string? password,
+        CancellationToken cancellationToken = default)
+        => await LoginAsync(transactionId, username, password, ssoContext: null, cancellationToken);
+
+    public async Task<ServiceResult<HostedAuthOperationResult>> LoginAsync(
+        string transactionId,
+        string? username,
+        string? password,
+        HostedSsoContext? ssoContext,
         CancellationToken cancellationToken = default)
     {
         var pair = await GetActivePairAsync(transactionId, HostedAuthStages.Login, cancellationToken);
@@ -229,12 +280,19 @@ public sealed class HostedAuthenticationAppService(
             return ServiceResult<HostedAuthOperationResult>.Ok(new(false, null, challenge));
         }
 
-        return await CompleteAsync(transaction, session, mfaMethod: null, cancellationToken);
+        return await CompleteAsync(transaction, session, mfaMethod: null, ssoContext, cancellationToken);
     }
 
     public async Task<ServiceResult<HostedAuthOperationResult>> ConfirmTwoFactorAsync(
         string transactionId,
         string? code,
+        CancellationToken cancellationToken = default)
+        => await ConfirmTwoFactorAsync(transactionId, code, ssoContext: null, cancellationToken);
+
+    public async Task<ServiceResult<HostedAuthOperationResult>> ConfirmTwoFactorAsync(
+        string transactionId,
+        string? code,
+        HostedSsoContext? ssoContext,
         CancellationToken cancellationToken = default)
     {
         var pair = await GetActivePairAsync(transactionId, HostedAuthStages.AwaitingTwoFactor, cancellationToken);
@@ -291,7 +349,95 @@ public sealed class HostedAuthenticationAppService(
             session.SubjectId,
             session.ChallengeId,
             cancellationToken: cancellationToken);
-        return await CompleteAsync(transaction, session, verified.Value.MfaMethod, cancellationToken);
+        return await CompleteAsync(transaction, session, verified.Value.MfaMethod, ssoContext, cancellationToken);
+    }
+
+    public async Task<ServiceResult<HostedAuthOperationResult>> CompleteFromSsoAsync(
+        string transactionId,
+        string? ssoSessionId,
+        HostedSsoContext? ssoContext,
+        CancellationToken cancellationToken = default)
+    {
+        var pair = await GetActivePairAsync(transactionId, HostedAuthStages.Login, cancellationToken);
+        if (pair is null)
+            return ServiceResult<HostedAuthOperationResult>.Fail(400, PublicInvalidLogin);
+
+        var (transaction, session) = pair.Value;
+        if (string.Equals(transaction.Prompt, "login", StringComparison.Ordinal))
+            return ServiceResult<HostedAuthOperationResult>.Fail(412, PublicLoginRequired);
+
+        if (string.IsNullOrWhiteSpace(ssoSessionId))
+        {
+            await AuditPromptNoneIfNeededAsync(transaction, session, "missing_session", cancellationToken);
+            return ServiceResult<HostedAuthOperationResult>.Fail(401, PublicLoginRequired);
+        }
+
+        var now = DateTime.UtcNow;
+        var ssoSession = await ssoSessionRepository.FindActiveAsync(
+            ssoSessionId.Trim(),
+            transaction.TenantId,
+            now.Subtract(SsoIdleTimeout),
+            now,
+            cancellationToken);
+        if (ssoSession is null)
+        {
+            await AuditPromptNoneIfNeededAsync(transaction, session, "invalid_or_expired_session", cancellationToken);
+            await AuditAsync(
+                AuthAuditEventTypes.SsoSessionExpired,
+                "failure",
+                transaction.CorrelationId,
+                transaction.TenantId,
+                transaction.ClientId,
+                transaction.Id,
+                session.Id,
+                detail: "invalid_or_expired",
+                cancellationToken: cancellationToken);
+            return ServiceResult<HostedAuthOperationResult>.Fail(401, PublicLoginRequired);
+        }
+
+        if (transaction.MaxAgeSeconds is { } maxAge
+            && ssoSession.AuthTimeUtc.AddSeconds(maxAge) < now)
+        {
+            await AuditPromptNoneIfNeededAsync(transaction, session, "max_age_exceeded", cancellationToken);
+            return ServiceResult<HostedAuthOperationResult>.Fail(401, PublicLoginRequired);
+        }
+
+        var status = await userAccountWriter.GetUserStatusAsync(
+            transaction.TenantId,
+            ssoSession.SubjectId,
+            cancellationToken);
+        if (!string.Equals(status, AccountStatuses.Active, StringComparison.Ordinal))
+        {
+            await ssoSessionRepository.RevokeAsync(ssoSession.Id, now, cancellationToken);
+            await AuditPromptNoneIfNeededAsync(transaction, session, "user_not_active", cancellationToken);
+            return ServiceResult<HostedAuthOperationResult>.Fail(401, PublicLoginRequired);
+        }
+
+        await ssoSessionRepository.TouchAsync(ssoSession.Id, now, cancellationToken);
+        session.SubjectId = ssoSession.SubjectId;
+        session.SubjectEmail = ssoSession.SubjectEmail;
+        session.SubjectUsername = ssoSession.SubjectUsername;
+        session.MfaMethod = ssoSession.MfaMethod;
+
+        await AuditAsync(
+            AuthAuditEventTypes.SsoSessionReused,
+            "success",
+            transaction.CorrelationId,
+            transaction.TenantId,
+            transaction.ClientId,
+            transaction.Id,
+            session.Id,
+            ssoSession.SubjectId,
+            metadata: new Dictionary<string, string>
+            {
+                ["sso_session_id"] = ssoSession.Id,
+                ["two_factor_satisfied"] = ssoSession.TwoFactorSatisfied ? "true" : "false",
+                ["user_agent_match"] = string.Equals(ssoSession.UserAgentHash, ssoContext?.UserAgentHash, StringComparison.Ordinal) ? "true" : "false",
+                ["ip_match"] = string.Equals(ssoSession.IpHash, ssoContext?.IpHash, StringComparison.Ordinal) ? "true" : "false"
+            },
+            cancellationToken: cancellationToken);
+
+        return await CompleteAsync(transaction, session, ssoSession.MfaMethod, ssoContext, cancellationToken, reuseSsoSession: ssoSession);
     }
 
     public async Task<ServiceResult<TwoFactorChallengeDto>> ResendTwoFactorAsync(
@@ -378,6 +524,7 @@ public sealed class HostedAuthenticationAppService(
         session.ChallengeId = null;
         session.VerificationType = null;
         session.DestinationHint = null;
+        session.MfaMethod = null;
         session.ChallengeCreatedAtUtc = null;
         await sessionRepository.ReplaceAsync(session, cancellationToken);
         return ServiceResult<HostedAuthTransaction>.Ok(transaction);
@@ -474,7 +621,9 @@ public sealed class HostedAuthenticationAppService(
         HostedAuthTransaction transaction,
         HostedAuthSession session,
         string? mfaMethod,
-        CancellationToken cancellationToken)
+        HostedSsoContext? ssoContext,
+        CancellationToken cancellationToken,
+        SsoSession? reuseSsoSession = null)
     {
         if (string.IsNullOrWhiteSpace(session.SubjectId))
             return ServiceResult<HostedAuthOperationResult>.Fail(401, "Identidade autenticada invalida.");
@@ -485,6 +634,14 @@ public sealed class HostedAuthenticationAppService(
 
         var plainCode = tokenGenerator.GenerateAuthorizationCode();
         var now = DateTime.UtcNow;
+        var ssoSession = reuseSsoSession ?? await CreateSsoSessionAsync(
+            transaction,
+            session,
+            mfaMethod,
+            ssoContext,
+            now,
+            cancellationToken);
+
         await authorizationCodeRepository.InsertAsync(
             new AuthorizationCodeGrant
             {
@@ -508,6 +665,7 @@ public sealed class HostedAuthenticationAppService(
             cancellationToken);
 
         session.Stage = HostedAuthStages.Completed;
+        session.MfaMethod = mfaMethod;
         await sessionRepository.ReplaceAsync(session, cancellationToken);
         await AuditAsync(
             AuthAuditEventTypes.AuthorizationCodeIssued,
@@ -528,7 +686,111 @@ public sealed class HostedAuthenticationAppService(
 
         var separator = transaction.RedirectUri.Contains('?', StringComparison.Ordinal) ? '&' : '?';
         var redirectUrl = $"{transaction.RedirectUri}{separator}code={Uri.EscapeDataString(plainCode)}&state={Uri.EscapeDataString(transaction.State)}";
-        return ServiceResult<HostedAuthOperationResult>.Ok(new(true, redirectUrl, null));
+        return ServiceResult<HostedAuthOperationResult>.Ok(new(true, redirectUrl, null, ssoSession?.Id, ssoSession?.ExpiresAtUtc));
+    }
+
+    public async Task<ServiceResult<HostedLogoutResult>> LogoutAsync(
+        string? tenantId,
+        string? ssoSessionId,
+        string? postLogoutRedirectUri,
+        CancellationToken cancellationToken = default)
+    {
+        var correlationId = Guid.NewGuid().ToString("N");
+        var normalizedTenantId = NormalizeOptional(tenantId);
+        if (!string.IsNullOrWhiteSpace(ssoSessionId))
+            await ssoSessionRepository.RevokeAsync(ssoSessionId.Trim(), DateTime.UtcNow, cancellationToken);
+
+        string? redirectUrl = null;
+        if (!string.IsNullOrWhiteSpace(normalizedTenantId) && !string.IsNullOrWhiteSpace(postLogoutRedirectUri))
+        {
+            var clients = await oauthClientRepository.ListAsync(normalizedTenantId, cancellationToken);
+            var requestedRedirect = postLogoutRedirectUri.Trim();
+            if (clients.Any(x => x.Active && x.PostLogoutRedirectUris.Contains(requestedRedirect, StringComparer.Ordinal)))
+                redirectUrl = requestedRedirect;
+        }
+
+        await AuditAsync(
+            AuthAuditEventTypes.LogoutCompleted,
+            "success",
+            correlationId,
+            normalizedTenantId,
+            detail: string.IsNullOrWhiteSpace(redirectUrl) ? "no_redirect" : "redirect",
+            cancellationToken: cancellationToken);
+
+        return ServiceResult<HostedLogoutResult>.Ok(new HostedLogoutResult(redirectUrl));
+    }
+
+    private async Task<SsoSession?> CreateSsoSessionAsync(
+        HostedAuthTransaction transaction,
+        HostedAuthSession session,
+        string? mfaMethod,
+        HostedSsoContext? ssoContext,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(session.SubjectId))
+            return null;
+
+        if (!string.IsNullOrWhiteSpace(ssoContext?.ExistingSessionId))
+            await ssoSessionRepository.RevokeAsync(ssoContext.ExistingSessionId.Trim(), now, cancellationToken);
+
+        var ssoSession = new SsoSession
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            TenantId = transaction.TenantId,
+            SubjectId = session.SubjectId,
+            SubjectEmail = session.SubjectEmail,
+            SubjectUsername = session.SubjectUsername,
+            CreatedAtUtc = now,
+            LastSeenAtUtc = now,
+            AuthTimeUtc = now,
+            ExpiresAtUtc = now.Add(SsoSessionLifetime),
+            MfaMethod = mfaMethod,
+            TwoFactorSatisfied = !string.IsNullOrWhiteSpace(mfaMethod),
+            CorrelationId = transaction.CorrelationId,
+            UserAgentHash = ssoContext?.UserAgentHash,
+            IpHash = ssoContext?.IpHash
+        };
+
+        await ssoSessionRepository.InsertAsync(ssoSession, cancellationToken);
+        await AuditAsync(
+            AuthAuditEventTypes.SsoSessionCreated,
+            "success",
+            transaction.CorrelationId,
+            transaction.TenantId,
+            transaction.ClientId,
+            transaction.Id,
+            session.Id,
+            session.SubjectId,
+            metadata: new Dictionary<string, string>
+            {
+                ["sso_session_id"] = ssoSession.Id,
+                ["two_factor_satisfied"] = ssoSession.TwoFactorSatisfied ? "true" : "false"
+            },
+            cancellationToken: cancellationToken);
+
+        return ssoSession;
+    }
+
+    private async Task AuditPromptNoneIfNeededAsync(
+        HostedAuthTransaction transaction,
+        HostedAuthSession session,
+        string detail,
+        CancellationToken cancellationToken)
+    {
+        if (!string.Equals(transaction.Prompt, "none", StringComparison.Ordinal))
+            return;
+
+        await AuditAsync(
+            AuthAuditEventTypes.SsoPromptNoneFailed,
+            "failure",
+            transaction.CorrelationId,
+            transaction.TenantId,
+            transaction.ClientId,
+            transaction.Id,
+            session.Id,
+            detail: detail,
+            cancellationToken: cancellationToken);
     }
 
     private async Task AuditAsync(

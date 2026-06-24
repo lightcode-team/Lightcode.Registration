@@ -179,3 +179,74 @@ public sealed class MongoAuthAuditLogRepository(
         await collection.Indexes.CreateManyAsync(models, cancellationToken);
     }
 }
+
+public sealed class MongoSsoSessionRepository(
+    IMongoClient client,
+    IOptions<MongoOptions> options) : ISsoSessionRepository
+{
+    public async Task InsertAsync(SsoSession session, CancellationToken cancellationToken = default)
+    {
+        var collection = GetCollection();
+        await EnsureIndexesAsync(collection, cancellationToken);
+        await collection.InsertOneAsync(session, cancellationToken: cancellationToken);
+    }
+
+    public async Task<SsoSession?> FindActiveAsync(
+        string id,
+        string tenantId,
+        DateTime idleCutoffUtc,
+        DateTime nowUtc,
+        CancellationToken cancellationToken = default) =>
+        await GetCollection()
+            .Find(x => x.Id == id
+                       && x.TenantId == tenantId
+                       && x.RevokedAtUtc == null
+                       && x.ExpiresAtUtc > nowUtc
+                       && x.LastSeenAtUtc > idleCutoffUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public Task TouchAsync(string id, DateTime lastSeenAtUtc, CancellationToken cancellationToken = default) =>
+        GetCollection().UpdateOneAsync(
+            x => x.Id == id && x.RevokedAtUtc == null && x.ExpiresAtUtc > lastSeenAtUtc,
+            Builders<SsoSession>.Update.Set(x => x.LastSeenAtUtc, lastSeenAtUtc),
+            cancellationToken: cancellationToken);
+
+    public Task RevokeAsync(string id, DateTime revokedAtUtc, CancellationToken cancellationToken = default) =>
+        GetCollection().UpdateOneAsync(
+            x => x.Id == id && x.RevokedAtUtc == null,
+            Builders<SsoSession>.Update.Set(x => x.RevokedAtUtc, revokedAtUtc),
+            cancellationToken: cancellationToken);
+
+    public Task RevokeBySubjectAsync(
+        string tenantId,
+        string subjectId,
+        DateTime revokedAtUtc,
+        CancellationToken cancellationToken = default) =>
+        GetCollection().UpdateManyAsync(
+            x => x.TenantId == tenantId && x.SubjectId == subjectId && x.RevokedAtUtc == null,
+            Builders<SsoSession>.Update.Set(x => x.RevokedAtUtc, revokedAtUtc),
+            cancellationToken: cancellationToken);
+
+    private IMongoCollection<SsoSession> GetCollection() =>
+        client.GetDatabase(options.Value.MasterDatabaseName)
+            .GetCollection<SsoSession>(SsoSession.CollectionName);
+
+    private static async Task EnsureIndexesAsync(
+        IMongoCollection<SsoSession> collection,
+        CancellationToken cancellationToken)
+    {
+        var models = new[]
+        {
+            new CreateIndexModel<SsoSession>(
+                Builders<SsoSession>.IndexKeys.Ascending(x => x.ExpiresAtUtc),
+                new CreateIndexOptions { Name = "ttl_expires_at", ExpireAfter = TimeSpan.Zero }),
+            new CreateIndexModel<SsoSession>(
+                Builders<SsoSession>.IndexKeys
+                    .Ascending(x => x.TenantId)
+                    .Ascending(x => x.SubjectId),
+                new CreateIndexOptions { Name = "tenant_subject" })
+        };
+
+        await collection.Indexes.CreateManyAsync(models, cancellationToken);
+    }
+}

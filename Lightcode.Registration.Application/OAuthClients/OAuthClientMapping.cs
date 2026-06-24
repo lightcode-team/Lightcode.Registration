@@ -12,6 +12,7 @@ internal static class OAuthClientMapping
             client.DisplayName,
             ToConfigDto(client.TokenConfig),
             client.RedirectUris,
+            client.PostLogoutRedirectUris,
             client.AllowedScopes,
             client.RequireConsent,
             client.Active,
