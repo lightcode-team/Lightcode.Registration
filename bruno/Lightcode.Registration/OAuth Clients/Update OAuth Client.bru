@@ -75,15 +75,30 @@ body:json {
   }
 }
 
+script:post-response {
+  const body = res.getBody();
+  
+  const clientId = body?.Data?.clientId;
+  
+  if (!clientId) {
+    bru.setVar("oauthClientId", "");
+  
+    const errors = body?.Errors?.join(" | ") || "ClientId não retornado pela API.";
+    throw new Error(errors);
+  }
+  
+  bru.setVar("oauthClientId", clientId);
+}
+
 docs {
   # Atualizar cliente OAuth
-
+  
   **PUT** `/api/oauth-clients/me` requer role `clients-write` ou scope `owner`.
-
+  
   Opera sobre o cliente identificado pelo claim `client_id` ou `sub` do JWT.
-
+  
   Esta request atualiza tambem o suporte ao login hospedado:
-
+  
   - `redirect_uris`: deve incluir exatamente `{{hostedRedirectUri}}`.
   - `post_logout_redirect_uris`: deve incluir exatamente `{{postLogoutRedirectUri}}` para logout central.
   - `allowed_scopes`: deve incluir os scopes aceitos pelo SSO, como `openid` e `email`.

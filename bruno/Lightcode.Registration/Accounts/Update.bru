@@ -1,7 +1,7 @@
 meta {
   name: Update Account (JWT)
   type: http
-  seq: 12
+  seq: 8
 }
 
 put {
@@ -10,12 +10,12 @@ put {
   auth: bearer
 }
 
-auth:bearer {
-  token: {{jwt}}
-}
-
 headers {
   Content-Type: application/json
+}
+
+auth:bearer {
+  token: {{jwt}}
 }
 
 body:json {
@@ -30,20 +30,20 @@ vars:pre-request {
 
 docs {
   # Atualizar conta (autenticado)
-
+  
   **PUT** `/api/accounts/{userId}`
-
+  
   - **Autenticação:** Bearer JWT (emitido por **Issue Token**). O tenant vem do claim `tenantId` do token (não use `X-Tenant-Id` aqui).
   - **Autorização:** só o utilizador cujo `sub` do JWT coincide com `{userId}` **ou** um utilizador com role `admin` no tenant.
-
+  
   O corpo é um **patch** (merge sobre o documento em Mongo). Campos bloqueados: `_id`, `createdAtUtc` (ignorados). `roles` só pode ser alterado por **admin**. Password em texto plano no patch é validada pelo schema e depois guardada como hash.
-
+  
   O documento **após o merge** é validado contra o **JSON Schema default** do tenant.
-
+  
   ## Variáveis
   - `userId` — normalmente o mesmo que `sub` no JWT (atualizar a própria conta)
   - `jwt` — ambiente LOCAL
-
+  
   ## Erros comuns
   - `400` — JSON inválido ou documento final não conforme o schema
   - `403` — não é o dono nem admin
