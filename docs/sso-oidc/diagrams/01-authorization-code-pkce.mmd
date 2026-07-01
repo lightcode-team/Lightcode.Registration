@@ -1,0 +1,34 @@
+sequenceDiagram
+    autonumber
+    participant User as Usuário
+    participant Browser as Browser
+    participant Client as App Cliente
+    participant Auth as /auth/login
+    participant Hosted as HostedAuthenticationAppService
+    participant TenantDb as tenant_{id}.OAuthClients
+    participant Master as SaasMasterDb
+
+    User->>Client: Abrir área autenticada
+    Client->>Client: Gerar state, nonce, code_verifier e code_challenge S256
+    Client-->>Browser: Redirect /auth/login + authorization request
+    Browser->>Auth: GET /auth/login?response_type=code&tenant_id&client_id&redirect_uri&state&nonce&code_challenge
+    Auth->>Hosted: StartAsync(request)
+    Hosted->>TenantDb: Buscar OAuthClient ativo por tenant_id/client_id
+    TenantDb-->>Hosted: OAuthClient
+    Hosted->>Hosted: Validar redirect_uri exato, scopes e PKCE S256
+    Hosted->>Master: Criar HostedAuthTransaction + HostedAuthSession
+
+    alt Sem lc_sso válido ou prompt=login
+        Auth-->>Browser: Renderizar login hospedado
+        Browser->>Auth: POST /auth/login
+        Auth->>Hosted: Validar credenciais e 2FA quando necessário
+    end
+
+    Hosted->>Master: Criar AuthorizationCodeGrant com code hash e PKCE
+    Auth-->>Browser: 302 redirect_uri?code&state
+    Browser->>Client: Entregar code e state
+    Client->>Client: Validar state
+    Client->>Auth: POST /api/auth/token + X-Tenant-Id + code_verifier
+    Auth->>Hosted: ExchangeAuthorizationCodeAsync
+    Hosted->>Master: Consumir code uma única vez validando PKCE
+    Hosted-->>Client: access_token + refresh_token

@@ -1,0 +1,47 @@
+sequenceDiagram
+    autonumber
+    participant Browser as Browser
+    participant Auth as /auth/*
+    participant Hosted as HostedAuthenticationAppService
+    participant Credentials as AuthenticationAppService
+    participant TwoFa as 2FA Service
+    participant Master as SaasMasterDb
+
+    Browser->>Auth: POST /auth/login com transactionId, usuário e senha
+    Auth->>Hosted: LoginAsync
+    Hosted->>Credentials: BeginHostedPasswordAuthenticationAsync
+    Credentials-->>Hosted: Usuário válido + política 2FA
+
+    alt 2FA não exigido
+        Hosted->>Master: Criar ou rotacionar SsoSession
+        Hosted->>Master: Criar AuthorizationCodeGrant
+        Auth-->>Browser: Set-Cookie lc_sso + redirect_uri?code&state
+    else 2FA exigido
+        Credentials->>TwoFa: Criar challenge purpose=login
+        TwoFa-->>Hosted: challenge_id + destino mascarado
+        Hosted->>Master: HostedAuthSession.Stage=awaiting_two_factor
+        Auth-->>Browser: Redirect /auth/2fa?transactionId
+
+        opt Reenvio
+            Browser->>Auth: POST /auth/2fa/resend
+            Auth->>Hosted: ResendTwoFactorAsync
+            Hosted->>TwoFa: Criar novo challenge e substituir anterior
+            Hosted->>Master: Atualizar challenge ativo na sessão
+        end
+
+        opt Cancelamento
+            Browser->>Auth: POST /auth/2fa/cancel
+            Auth->>Hosted: CancelTwoFactorAsync
+            Hosted->>TwoFa: Invalidar challenge pendente
+            Hosted->>Master: Voltar sessão para login
+        end
+
+        Browser->>Auth: POST /auth/2fa com código
+        Auth->>Hosted: ConfirmTwoFactorAsync
+        Hosted->>Credentials: ConfirmHostedTwoFactorAsync
+        Credentials->>TwoFa: Verificar challenge atômico
+        TwoFa-->>Hosted: MFA confirmado
+        Hosted->>Master: Criar ou rotacionar SsoSession com mfaMethod
+        Hosted->>Master: Criar AuthorizationCodeGrant
+        Auth-->>Browser: Set-Cookie lc_sso + redirect_uri?code&state
+    end

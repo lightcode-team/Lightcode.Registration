@@ -369,6 +369,4 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # Custom rules
-sso-multitenant
-sso-oidc
 custom-domains
