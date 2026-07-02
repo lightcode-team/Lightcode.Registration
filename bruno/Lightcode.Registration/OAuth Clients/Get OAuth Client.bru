@@ -1,0 +1,43 @@
+meta {
+  name: Get OAuth Client
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/oauth-clients/{{oauthClientRecordId}}
+  body: none
+  auth: bearer
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+script:post-response {
+  const body = res.getBody();
+
+  const id = body?.Data?.id;
+  const clientId = body?.Data?.clientId;
+
+  if (!id || !clientId) {
+    const errors = body?.Errors?.join(" | ") || "id ou clientId não retornado pela API.";
+    throw new Error(errors);
+  }
+
+  bru.setVar("oauthClientRecordId", id);
+  bru.setVar("oauthClientId", clientId);
+}
+
+docs {
+  # Obter cliente OAuth por id
+
+  **GET** `/api/oauth-clients/{id}` requer role `clients-read` ou scope `owner`.
+
+  Usa `oauthClientRecordId`, que representa o `id` interno do documento MongoDB.
+  Não use `oauthClientId` nesta rota, pois ele representa o `client_id` público usado nos grants OAuth.
+}

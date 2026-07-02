@@ -1,0 +1,28 @@
+meta {
+  name: Deactivate OAuth Client
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/api/oauth-clients/{{oauthClientRecordId}}
+  body: none
+  auth: bearer
+}
+
+headers {
+  Authorization: Bearer {{jwt}}
+}
+
+auth:bearer {
+  token: {{jwt}}
+}
+
+docs {
+  # Desativar cliente OAuth por id
+
+  **DELETE** `/api/oauth-clients/{id}` requer role `clients-write` ou scope `owner`.
+
+  Usa `oauthClientRecordId`, que representa o `id` interno do documento MongoDB.
+  Desativa o cliente alvo sem depender do `client_id` do token atual.
+}

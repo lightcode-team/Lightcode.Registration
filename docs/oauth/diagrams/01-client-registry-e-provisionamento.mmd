@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    participant Admin as Platform Admin
+    participant Tenants as /api/tenants
+    participant Onboarding as TenantOnboardingAppService
+    participant Provisioner as MongoTenantProvisioner
+    participant Master as SaasMasterDb
+    participant TenantDb as tenant_{id}
+    participant OAuthApi as /api/oauth-clients
+    participant OAuthService as OAuthClientAppService
+
+    Admin->>Tenants: POST criar tenant + adminEmail
+    Tenants->>Onboarding: CreateTenantAsync
+    Onboarding->>Provisioner: ProvisionAsync
+    Provisioner->>Master: Criar Tenant + chave RSA protegida
+    Provisioner->>TenantDb: Criar schema, SMTP e templates
+    Provisioner->>TenantDb: Inserir OAuthClient owner
+    Note over Provisioner,TenantDb: client_id=client_{tenantId}, secret com hash PBKDF2, scope owner
+    Provisioner-->>Onboarding: tenantId + clientId + clientSecret puro
+    Onboarding-->>Admin: tenant criado + oauthClientId
+
+    Admin->>OAuthApi: POST /api/oauth-clients com Bearer owner
+    OAuthApi->>OAuthApi: Policy OAuthClientsWrite
+    OAuthApi->>OAuthService: CreateAsync(tenantId, request)
+    OAuthService->>OAuthService: Validar tokenConfig, redirect URIs e scopes
+    OAuthService->>TenantDb: Inserir OAuthClient ativo
+    OAuthService-->>Admin: clientId + clientSecret retornado uma única vez

@@ -36,6 +36,17 @@ public sealed class OAuthClientAppService(
             : ServiceResult<OAuthClientDto>.Ok(OAuthClientMapping.ToDto(client));
     }
 
+    public async Task<ServiceResult<OAuthClientDto>> GetByIdAsync(
+        string tenantId,
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        var client = await repository.GetByIdAsync(tenantId, id, cancellationToken);
+        return client is null
+            ? ServiceResult<OAuthClientDto>.Fail(404, "Cliente OAuth não encontrado.")
+            : ServiceResult<OAuthClientDto>.Ok(OAuthClientMapping.ToDto(client));
+    }
+
     public async Task<ServiceResult<OAuthClientCreatedDto>> CreateAsync(
         string tenantId,
         CreateOAuthClientRequest request,
@@ -52,7 +63,8 @@ public sealed class OAuthClientAppService(
         if (errors.Count > 0)
             return ServiceResult<OAuthClientCreatedDto>.Fail(400, errors);
 
-        if (!string.IsNullOrWhiteSpace(request.NotifyEmail) && !IsValidEmail(request.NotifyEmail.Trim()))
+        var notifyEmail = request.NotifyEmail?.Trim();
+        if (!string.IsNullOrWhiteSpace(notifyEmail) && !IsValidEmail(notifyEmail))
             return ServiceResult<OAuthClientCreatedDto>.Fail(400, "notifyEmail inválido.");
 
         var now = DateTime.UtcNow;
@@ -65,6 +77,7 @@ public sealed class OAuthClientAppService(
             ClientId = clientId,
             ClientSecretHash = passwordHasher.Hash(plainSecret),
             DisplayName = request.DisplayName?.Trim(),
+            NotifyEmail = notifyEmail,
             TokenConfig = config,
             RedirectUris = redirectUris.Values.ToList(),
             PostLogoutRedirectUris = postLogoutRedirectUris.Values.ToList(),
@@ -77,14 +90,14 @@ public sealed class OAuthClientAppService(
 
         await repository.InsertAsync(tenantId, entity, cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(request.NotifyEmail))
+        if (!string.IsNullOrWhiteSpace(notifyEmail))
         {
             await emailEnqueuePublisher.PublishSendAsync(
                 new EmailDispatchQueueMessage(
                     tenantId,
                     TemplateId: null,
                     TemplateKey: ClientCredentialsTemplateKey,
-                    To: request.NotifyEmail.Trim(),
+                    To: notifyEmail,
                     Parameters: new Dictionary<string, string>(StringComparer.Ordinal)
                     {
                         ["tenantName"] = tenantId,
@@ -101,11 +114,15 @@ public sealed class OAuthClientAppService(
                 entity.ClientId,
                 plainSecret,
                 entity.DisplayName,
+                entity.NotifyEmail,
                 OAuthClientMapping.ToConfigDto(entity.TokenConfig),
                 entity.RedirectUris,
                 entity.PostLogoutRedirectUris,
                 entity.AllowedScopes,
-                entity.RequireConsent));
+                entity.RequireConsent,
+                entity.Active,
+                entity.CreatedAtUtc,
+                entity.UpdatedAtUtc));
     }
 
     public async Task<ServiceResult<OAuthClientDto>> UpdateByClientIdAsync(
@@ -118,27 +135,20 @@ public sealed class OAuthClientAppService(
         if (client is null)
             return ServiceResult<OAuthClientDto>.Fail(404, "Cliente OAuth não encontrado.");
 
-        var config = OAuthClientMapping.ToEntity(request.TokenConfig);
-        var errors = OAuthClientTokenConfigurationValidator.Validate(config).ToList();
-        var redirectUris = OAuthRedirectUriValidator.Normalize(request.RedirectUris ?? client.RedirectUris);
-        var postLogoutRedirectUris = OAuthRedirectUriValidator.Normalize(request.PostLogoutRedirectUris ?? client.PostLogoutRedirectUris);
-        var allowedScopes = OAuthScopeValidator.Normalize(request.AllowedScopes ?? client.AllowedScopes);
-        errors.AddRange(redirectUris.Errors);
-        errors.AddRange(postLogoutRedirectUris.Errors);
-        errors.AddRange(allowedScopes.Errors);
-        if (errors.Count > 0)
-            return ServiceResult<OAuthClientDto>.Fail(400, errors);
+        return await UpdateAsync(tenantId, client, request, cancellationToken);
+    }
 
-        client.DisplayName = request.DisplayName?.Trim();
-        client.TokenConfig = config;
-        client.RedirectUris = redirectUris.Values.ToList();
-        client.PostLogoutRedirectUris = postLogoutRedirectUris.Values.ToList();
-        client.AllowedScopes = allowedScopes.Values.ToList();
-        client.RequireConsent = request.RequireConsent ?? client.RequireConsent;
-        client.UpdatedAtUtc = DateTime.UtcNow;
+    public async Task<ServiceResult<OAuthClientDto>> UpdateByIdAsync(
+        string tenantId,
+        string id,
+        UpdateOAuthClientRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var client = await repository.GetByIdAsync(tenantId, id, cancellationToken);
+        if (client is null)
+            return ServiceResult<OAuthClientDto>.Fail(404, "Cliente OAuth não encontrado.");
 
-        await repository.ReplaceAsync(tenantId, client, cancellationToken);
-        return ServiceResult<OAuthClientDto>.Ok(OAuthClientMapping.ToDto(client));
+        return await UpdateAsync(tenantId, client, request, cancellationToken);
     }
 
     public async Task<ServiceResult<bool>> DeactivateByClientIdAsync(
@@ -154,6 +164,51 @@ public sealed class OAuthClientAppService(
         return deactivated
             ? ServiceResult<bool>.Ok(true)
             : ServiceResult<bool>.Fail(404, "Cliente OAuth não encontrado.");
+    }
+
+    public async Task<ServiceResult<bool>> DeactivateByIdAsync(
+        string tenantId,
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        var deactivated = await repository.DeactivateAsync(tenantId, id, cancellationToken);
+        return deactivated
+            ? ServiceResult<bool>.Ok(true)
+            : ServiceResult<bool>.Fail(404, "Cliente OAuth não encontrado.");
+    }
+
+    private async Task<ServiceResult<OAuthClientDto>> UpdateAsync(
+        string tenantId,
+        OAuthClient client,
+        UpdateOAuthClientRequest request,
+        CancellationToken cancellationToken)
+    {
+        var config = OAuthClientMapping.ToEntity(request.TokenConfig);
+        var errors = OAuthClientTokenConfigurationValidator.Validate(config).ToList();
+        var redirectUris = OAuthRedirectUriValidator.Normalize(request.RedirectUris ?? client.RedirectUris);
+        var postLogoutRedirectUris = OAuthRedirectUriValidator.Normalize(request.PostLogoutRedirectUris ?? client.PostLogoutRedirectUris);
+        var allowedScopes = OAuthScopeValidator.Normalize(request.AllowedScopes ?? client.AllowedScopes);
+        errors.AddRange(redirectUris.Errors);
+        errors.AddRange(postLogoutRedirectUris.Errors);
+        errors.AddRange(allowedScopes.Errors);
+        if (errors.Count > 0)
+            return ServiceResult<OAuthClientDto>.Fail(400, errors);
+
+        var notifyEmail = request.NotifyEmail?.Trim();
+        if (!string.IsNullOrWhiteSpace(notifyEmail) && !IsValidEmail(notifyEmail))
+            return ServiceResult<OAuthClientDto>.Fail(400, "notifyEmail inválido.");
+
+        client.DisplayName = request.DisplayName?.Trim();
+        client.NotifyEmail = notifyEmail;
+        client.TokenConfig = config;
+        client.RedirectUris = redirectUris.Values.ToList();
+        client.PostLogoutRedirectUris = postLogoutRedirectUris.Values.ToList();
+        client.AllowedScopes = allowedScopes.Values.ToList();
+        client.RequireConsent = request.RequireConsent ?? client.RequireConsent;
+        client.UpdatedAtUtc = DateTime.UtcNow;
+
+        await repository.ReplaceAsync(tenantId, client, cancellationToken);
+        return ServiceResult<OAuthClientDto>.Ok(OAuthClientMapping.ToDto(client));
     }
 
     private static bool IsValidEmail(string email)

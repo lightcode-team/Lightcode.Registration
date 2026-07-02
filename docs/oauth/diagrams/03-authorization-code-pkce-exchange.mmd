@@ -1,0 +1,31 @@
+sequenceDiagram
+    autonumber
+    participant Browser as Browser
+    participant App as App Cliente
+    participant Login as /auth/login
+    participant Hosted as HostedAuthenticationAppService
+    participant OAuthRepo as IOAuthClientRepository
+    participant Master as SaasMasterDb
+    participant Token as /api/auth/token
+    participant Auth as AuthenticationAppService
+
+    App->>App: Gerar state, nonce, code_verifier e code_challenge S256
+    App-->>Browser: Redirect para /auth/login
+    Browser->>Login: GET com tenant_id, client_id, redirect_uri, scope, state, nonce, code_challenge
+    Login->>Hosted: StartAsync(HostedAuthorizationRequest)
+    Hosted->>OAuthRepo: Buscar OAuthClient ativo no tenant
+    OAuthRepo-->>Hosted: OAuthClient
+    Hosted->>Hosted: Validar redirect_uri exato, scope e PKCE S256
+    Hosted->>Master: Criar HostedAuthTransaction + HostedAuthSession
+    Login-->>Browser: Renderizar login ou reutilizar lc_sso
+    Browser->>Login: POST credenciais e 2FA quando necessário
+    Login->>Hosted: LoginAsync / ConfirmTwoFactorAsync
+    Hosted->>Master: Inserir AuthorizationCodeGrant com code hash
+    Login-->>Browser: 302 redirect_uri?code&state
+    Browser-->>App: Entregar code e state
+    App->>App: Validar state
+    App->>Token: POST grant_type=authorization_code + X-Tenant-Id + code_verifier
+    Token->>Hosted: ExchangeAuthorizationCodeAsync
+    Hosted->>Master: TryConsumeAsync(code hash + PKCE)
+    Hosted->>Auth: IssueHostedIdentityTokenAsync(subjectId)
+    Auth-->>App: access_token + refresh_token

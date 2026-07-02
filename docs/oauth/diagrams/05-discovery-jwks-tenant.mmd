@@ -1,0 +1,19 @@
+sequenceDiagram
+    autonumber
+    participant Integrator as API Cliente
+    participant Discovery as TenantDiscoveryController
+    participant Keys as ITenantSigningKeyResolver
+    participant Master as SaasMasterDb.Tenants
+
+    Integrator->>Discovery: GET /tenants/{tenantId}/.well-known/openid-configuration
+    Discovery->>Keys: ResolvePublicKeyJwk(tenantId)
+    Keys->>Master: Ler SigningPublicKeyJwk
+    Master-->>Keys: Public JWK
+    Discovery-->>Integrator: issuer + jwks_uri + RS256
+
+    Integrator->>Discovery: GET /tenants/{tenantId}/.well-known/jwks.json
+    Discovery->>Keys: ResolvePublicKeyJwk(tenantId)
+    Keys->>Master: Ler SigningPublicKeyJwk
+    Master-->>Keys: Public JWK
+    Discovery-->>Integrator: JWKS com public_jwk
+    Note over Discovery,Integrator: Nenhum segredo ou chave privada é exposta

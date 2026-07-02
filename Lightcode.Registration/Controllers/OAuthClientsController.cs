@@ -37,6 +37,14 @@ public sealed class OAuthClientsController(IOAuthClientAppService oauthClientApp
         return result.ToApiResponse();
     }
 
+    [Authorize(Policy = OAuthClientsPolicyNames.ClientsRead)]
+    [HttpGet("{id}")]
+    public async Task<IActionResult> GetById(string id, CancellationToken cancellationToken)
+    {
+        var result = await oauthClientAppService.GetByIdAsync(CurrentTenantId, id, cancellationToken);
+        return result.ToApiResponse();
+    }
+
     [Authorize(Policy = OAuthClientsPolicyNames.ClientsWrite)]
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateOAuthClientRequest body, CancellationToken cancellationToken)
@@ -54,10 +62,26 @@ public sealed class OAuthClientsController(IOAuthClientAppService oauthClientApp
     }
 
     [Authorize(Policy = OAuthClientsPolicyNames.ClientsWrite)]
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateById(string id, [FromBody] UpdateOAuthClientRequest body, CancellationToken cancellationToken)
+    {
+        var result = await oauthClientAppService.UpdateByIdAsync(CurrentTenantId, id, body, cancellationToken);
+        return result.ToApiResponse();
+    }
+
+    [Authorize(Policy = OAuthClientsPolicyNames.ClientsWrite)]
     [HttpDelete("me")]
     public async Task<IActionResult> DeactivateCurrent(CancellationToken cancellationToken)
     {
         var result = await oauthClientAppService.DeactivateByClientIdAsync(CurrentTenantId, CurrentClientId, cancellationToken);
+        return result.ToApiResponse();
+    }
+
+    [Authorize(Policy = OAuthClientsPolicyNames.ClientsWrite)]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeactivateById(string id, CancellationToken cancellationToken)
+    {
+        var result = await oauthClientAppService.DeactivateByIdAsync(CurrentTenantId, id, cancellationToken);
         return result.ToApiResponse();
     }
 }

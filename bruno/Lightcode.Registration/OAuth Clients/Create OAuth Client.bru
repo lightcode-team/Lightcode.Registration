@@ -44,6 +44,25 @@ body:json {
   }
 }
 
+script:post-response {
+  const body = res.getBody();
+
+  const id = body?.Data?.id;
+  const clientId = body?.Data?.clientId;
+  const clientSecret = body?.Data?.clientSecret;
+
+  if (!id || !clientId || !clientSecret) {
+    bru.setVar("oauthClientRecordId", "");
+
+    const errors = body?.Errors?.join(" | ") || "id, clientId ou clientSecret não retornado pela API.";
+    throw new Error(errors);
+  }
+
+  bru.setVar("oauthClientRecordId", id);
+  bru.setVar("oauthClientId", clientId);
+  bru.setVar("oauthClientSecret", clientSecret);
+}
+
 docs {
   # Criar cliente OAuth
 

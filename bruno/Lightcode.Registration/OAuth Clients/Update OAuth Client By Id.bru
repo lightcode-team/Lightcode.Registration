@@ -1,11 +1,11 @@
 meta {
-  name: Update OAuth Client
+  name: Update OAuth Client By Id
   type: http
-  seq: 3
+  seq: 7
 }
 
 put {
-  url: {{baseUrl}}/api/oauth-clients/me
+  url: {{baseUrl}}/api/oauth-clients/{{oauthClientRecordId}}
   body: json
   auth: bearer
 }
@@ -95,12 +95,10 @@ script:post-response {
 }
 
 docs {
-  # Atualizar cliente OAuth autenticado
+  # Atualizar cliente OAuth por id
 
-  **PUT** `/api/oauth-clients/me` requer role `clients-write` ou scope `owner`.
+  **PUT** `/api/oauth-clients/{id}` requer role `clients-write` ou scope `owner`.
 
-  Opera sobre o cliente identificado pelo claim `client_id` ou `sub` do JWT.
-
-  Também atualiza `notifyEmail`, redirect URIs, logout URIs, scopes, `require_consent` e `tokenConfig`.
-  O script salva `oauthClientRecordId` com o id interno retornado e mantém `oauthClientId` como o `client_id` público.
+  Usa `oauthClientRecordId`, que representa o `id` interno do documento MongoDB.
+  Mantém `oauthClientId` para o `client_id` público usado em `/api/auth/token` e no login hospedado.
 }

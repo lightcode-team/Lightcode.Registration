@@ -21,6 +21,7 @@ public sealed record CreateOAuthClientRequest(
 
 public sealed record UpdateOAuthClientRequest(
     string? DisplayName,
+    string? NotifyEmail,
     OAuthClientTokenConfigDto TokenConfig,
     [property: JsonPropertyName("redirect_uris")] IReadOnlyList<string>? RedirectUris = null,
     [property: JsonPropertyName("post_logout_redirect_uris")] IReadOnlyList<string>? PostLogoutRedirectUris = null,
@@ -31,6 +32,7 @@ public sealed record OAuthClientDto(
     string Id,
     string ClientId,
     string? DisplayName,
+    string? NotifyEmail,
     OAuthClientTokenConfigDto TokenConfig,
     [property: JsonPropertyName("redirect_uris")] IReadOnlyList<string> RedirectUris,
     [property: JsonPropertyName("post_logout_redirect_uris")] IReadOnlyList<string> PostLogoutRedirectUris,
@@ -45,8 +47,12 @@ public sealed record OAuthClientCreatedDto(
     string ClientId,
     string ClientSecret,
     string? DisplayName,
+    string? NotifyEmail,
     OAuthClientTokenConfigDto TokenConfig,
     [property: JsonPropertyName("redirect_uris")] IReadOnlyList<string> RedirectUris,
     [property: JsonPropertyName("post_logout_redirect_uris")] IReadOnlyList<string> PostLogoutRedirectUris,
     [property: JsonPropertyName("allowed_scopes")] IReadOnlyList<string> AllowedScopes,
-    [property: JsonPropertyName("require_consent")] bool RequireConsent);
+    [property: JsonPropertyName("require_consent")] bool RequireConsent,
+    bool Active,
+    DateTime CreatedAtUtc,
+    DateTime UpdatedAtUtc);

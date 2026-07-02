@@ -15,6 +15,8 @@ public sealed class OAuthClient
 
     public string? DisplayName { get; set; }
 
+    public string? NotifyEmail { get; set; }
+
     public OAuthClientTokenConfiguration TokenConfig { get; set; } = new();
 
     /// <summary>Callbacks autorizados para o login hospedado. Lista vazia mantém o cliente sem authorization code.</summary>

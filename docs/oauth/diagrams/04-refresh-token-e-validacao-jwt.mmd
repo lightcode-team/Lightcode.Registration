@@ -1,0 +1,37 @@
+sequenceDiagram
+    autonumber
+    participant Client as App Cliente
+    participant Token as /api/auth/token
+    participant Auth as AuthenticationAppService
+    participant Refresh as IRefreshTokenRepository
+    participant OAuthRepo as IOAuthClientRepository
+    participant Users as Users tenant
+    participant Issuer as JwtAccessTokenIssuer
+    participant Api as API Protegida
+    participant Bearer as JwtBearer
+    participant Validator as JwtTenantTokenValidator
+
+    Client->>Token: POST grant_type=refresh_token + X-Tenant-Id
+    Token->>Auth: IssueTokenAsync
+    Auth->>Refresh: FindActiveByPlainTokenAsync
+    Refresh-->>Auth: RefreshToken ativo
+    Auth->>Refresh: TryIncrementUseCountAsync
+    alt subjectType=client
+        Auth->>OAuthRepo: FindByClientIdAsync(subjectId)
+        OAuthRepo-->>Auth: OAuthClient ativo
+    else subjectType=user
+        Auth->>Users: GetUserStatusAsync(subjectId)
+        Users-->>Auth: active/incomplete
+    end
+    Auth->>Issuer: CreateAccessToken com perfil resolvido
+    Auth-->>Client: Novo access_token + mesmo refresh_token
+
+    Client->>Api: Authorization: Bearer access_token
+    Api->>Bearer: Validar assinatura e lifetime
+    Bearer->>Bearer: Resolver JWK pública pelo tenantId
+    Bearer->>Validator: OnTokenValidatéd
+    Validator->>Validator: Validar tenant ativo, issuer e audience
+    alt token de cliente
+        Validator->>OAuthRepo: Recarregar OAuthClient por client_id
+    end
+    Validator-->>Api: Token aceito ou rejeitado
