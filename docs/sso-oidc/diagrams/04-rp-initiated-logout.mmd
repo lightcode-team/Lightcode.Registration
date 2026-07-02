@@ -1,0 +1,21 @@
+sequenceDiagram
+    autonumber
+    participant Browser as Browser
+    participant Client as App Cliente
+    participant Logout as /auth/logout
+    participant Hosted as HostedAuthenticationAppService
+    participant Master as SaasMasterDb.SsoSessions
+    participant TenantDb as tenant_{id}.OAuthClients
+
+    Client->>Client: Limpar sessão local e tokens do app
+    Client-->>Browser: Redirect /auth/logout?tenant_id&post_logout_redirect_uri
+    Browser->>Logout: GET /auth/logout com cookie lc_sso
+    Logout->>Hosted: LogoutAsync(tenant_id, lc_sso, post_logout_redirect_uri)
+    Hosted->>Master: Revogar SsoSession quando cookie existir
+    Hosted->>TenantDb: Validar post_logout_redirect_uri em OAuthClient ativo
+    alt Redirect autorizado
+        Logout-->>Browser: Delete-Cookie lc_sso + 302 post_logout_redirect_uri
+        Browser->>Client: Logout callback
+    else Sem redirect autorizado
+        Logout-->>Browser: Delete-Cookie lc_sso + "Logout concluido."
+    end

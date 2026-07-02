@@ -1,0 +1,25 @@
+flowchart TD
+    Authorize[/auth/login/] --> Validate[Validar tenant_id, client, redirect_uri, scope, state, nonce e PKCE]
+    Validate --> Login[Login hospedado + antiforgery + rate limit]
+    Login --> TwoFa{2FA exigido?}
+    TwoFa -- Sim --> Challenge[Challenge purpose=login, hash, tentativas e expiração]
+    TwoFa -- Não --> Sso[SsoSession lc_sso por tenant]
+    Challenge --> Sso
+    Sso --> Code[Authorization code opaco, hash, TTL 60s e uso único]
+    Code --> Token[/api/auth/token grant_type=authorization_code/]
+    Token --> Pkce[Validar X-Tenant-Id, client, redirect_uri e PKCE S256]
+    Pkce --> Jwt[access_token tenant-scoped + refresh_token]
+
+    Threats[Ameaças] --> T1[Open redirect]
+    Threats --> T2[Code replay]
+    Threats --> T3[CSRF]
+    Threats --> T4[Token leakage]
+    Threats --> T5[SSO session replay]
+    Threats --> T6[Tenant mix-up]
+
+    T1 -. mitigado por .-> Validate
+    T2 -. mitigado por .-> Code
+    T3 -. mitigado por .-> Login
+    T4 -. mitigado por .-> Jwt
+    T5 -. mitigado por .-> Sso
+    T6 -. mitigado por .-> Pkce

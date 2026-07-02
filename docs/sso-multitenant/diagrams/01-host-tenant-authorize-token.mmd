@@ -1,0 +1,29 @@
+sequenceDiagram
+    autonumber
+    participant Browser as Browser
+    participant Client as App Cliente
+    participant Auth as Registration /auth
+    participant Token as /api/auth/token
+    participant TenantDb as tenant_{id}
+    participant Master as SaasMasterDb
+
+    Note over Browser,Auth: Não há resolução Host -> Tenant no código atual.
+    Note over Browser,Auth: O app informa tenant_id explicitamente no início do SSO.
+
+    Client->>Client: Selecionar tenantId conhecido
+    Client->>Browser: Redirect /auth/login?tenant_id={tenantId}&client_id={clientId}&...
+    Browser->>Auth: GET /auth/login com tenant_id
+    Auth->>TenantDb: Buscar OAuthClient do tenant informado
+    Auth->>Auth: Validar redirect_uri, scope, state, nonce e PKCE S256
+    Auth->>Master: Criar HostedAuthTransaction e HostedAuthSession
+    Auth-->>Browser: Login hospedado, ou reuso de lc_sso do mesmo tenant
+    Browser->>Auth: POST credenciais e 2FA quando necessário
+    Auth->>Master: Criar/reutilizar SsoSession vinculada ao TenantId
+    Auth-->>Browser: 302 redirect_uri?code&state
+    Browser->>Client: Entregar code e state
+    Client->>Token: POST /api/auth/token com X-Tenant-Id e code_verifier
+    Token->>Master: Consumir AuthorizationCodeGrant vinculado ao tenant
+    Token->>TenantDb: Recarregar usuário/status/roles
+    Token-->>Client: access_token tenant-scoped + refresh_token
+
+    Note over Client,Token: Futuro Custom Domains deve substituir tenant explícito por contexto server-side somente depois de existir código correspondente.

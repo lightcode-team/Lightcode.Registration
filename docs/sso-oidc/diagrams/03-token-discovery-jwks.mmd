@@ -1,0 +1,25 @@
+sequenceDiagram
+    autonumber
+    participant Client as App Cliente
+    participant Token as /api/auth/token
+    participant Hosted as HostedAuthenticationAppService
+    participant Master as SaasMasterDb
+    participant Users as tenant_{id}.Users
+    participant Issuer as Tenant JWT Issuer
+    participant Discovery as /tenants/{tenantId}/.well-known
+    participant Api as API Protegida
+
+    Client->>Token: POST /api/auth/token + X-Tenant-Id + grant_type=authorization_code
+    Token->>Hosted: ExchangeAuthorizationCodeAsync
+    Hosted->>Master: Consumir AuthorizationCodeGrant por tenant, client, redirect_uri e PKCE
+    Hosted->>Users: Recarregar usuário, status e roles
+    Hosted->>Issuer: Emitir JWT tenant-scoped e refresh token
+    Token-->>Client: AuthTokenResponse token(access_token, refresh_token)
+
+    Client->>Api: Request com Bearer access_token
+    Api->>Discovery: GET /tenants/{tenantId}/.well-known/openid-configuration
+    Discovery-->>Api: issuer do tenant + jwks_uri
+    Api->>Discovery: GET /tenants/{tenantId}/.well-known/jwks.json
+    Discovery-->>Api: Chave pública RSA do tenant
+    Api->>Api: Validar assinatura, issuer, audience, exp, roles/scopes e tenantId
+    Api-->>Client: Recurso autorizado
