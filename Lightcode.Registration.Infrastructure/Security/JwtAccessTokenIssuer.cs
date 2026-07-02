@@ -58,6 +58,12 @@ public sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> jwtOptions) : IAcc
         foreach (var scope in profile.Scopes.Where(s => !string.IsNullOrWhiteSpace(s)))
             claims.Add(new Claim("scope", scope.Trim()));
 
+        var audiences = profile.Audiences.Count > 0
+            ? profile.Audiences
+            : [profile.Audience];
+        foreach (var audience in audiences.Where(a => !string.IsNullOrWhiteSpace(a)).Distinct(StringComparer.Ordinal))
+            claims.Add(new Claim(JwtRegisteredClaimNames.Aud, audience.Trim()));
+
         if (additionalClaims is not null)
             claims.AddRange(additionalClaims);
 
@@ -67,7 +73,7 @@ public sealed class JwtAccessTokenIssuer(IOptions<JwtOptions> jwtOptions) : IAcc
 
         var token = new JwtSecurityToken(
             issuer: profile.Issuer,
-            audience: profile.Audience,
+            audience: null,
             claims: claims,
             expires: DateTime.UtcNow.AddMinutes(expiresMinutes),
             signingCredentials: creds);

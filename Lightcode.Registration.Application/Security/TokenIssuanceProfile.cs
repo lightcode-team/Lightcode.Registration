@@ -10,6 +10,8 @@ public sealed class TokenIssuanceProfile
 
     public required string Audience { get; init; }
 
+    public IReadOnlyList<string> Audiences { get; init; } = [];
+
     public int AccessTokenExpirationMinutes { get; init; }
 
     public int RefreshTokenExpirationDays { get; init; }
@@ -32,14 +34,15 @@ public sealed class TokenIssuanceProfile
     {
         var config = client.TokenConfig;
         var issuer = ResolveSingle(config, TokenClaimTypes.Issuer);
-        var audience = ResolveSingle(config, TokenClaimTypes.Audience);
-        if (string.IsNullOrWhiteSpace(audience))
-            audience = issuer;
+        var audiences = ResolveMany(config, TokenClaimTypes.Audience);
+        if (audiences.Count == 0 && !string.IsNullOrWhiteSpace(issuer))
+            audiences = [issuer];
 
         return new TokenIssuanceProfile
         {
             Issuer = issuer,
-            Audience = audience,
+            Audience = audiences.FirstOrDefault() ?? "",
+            Audiences = audiences,
             AccessTokenExpirationMinutes = config.AccessTokenExpirationMinutes,
             RefreshTokenExpirationDays = config.RefreshTokenExpirationDays,
             MaxRefreshTokenUses = config.MaxRefreshTokenUses,
@@ -62,6 +65,7 @@ public sealed class TokenIssuanceProfile
         {
             Issuer = TenantTokenIssuer.Build(registration, jwt, tenantId),
             Audience = $"{jwt.Audience}/{tenantId}",
+            Audiences = [$"{jwt.Audience}/{tenantId}"],
             AccessTokenExpirationMinutes = jwt.ExpirationMinutes,
             RefreshTokenExpirationDays = jwt.RefreshTokenExpirationDays,
             MaxRefreshTokenUses = jwt.MaxRefreshTokenUses,
@@ -84,6 +88,7 @@ public sealed class TokenIssuanceProfile
         {
             Issuer = TenantTokenIssuer.Build(registration, jwt, tenantId),
             Audience = $"{jwt.Audience}/{tenantId}",
+            Audiences = [$"{jwt.Audience}/{tenantId}"],
             AccessTokenExpirationMinutes = jwt.ExpirationMinutes,
             RefreshTokenExpirationDays = jwt.RefreshTokenExpirationDays,
             MaxRefreshTokenUses = jwt.MaxRefreshTokenUses,

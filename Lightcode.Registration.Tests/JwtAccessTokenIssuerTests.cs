@@ -38,6 +38,25 @@ public sealed class JwtAccessTokenIssuerTests
     }
 
     [Fact]
+    public void CreateAccessToken_emits_all_configured_audiences()
+    {
+        var issuer = CreateIssuer();
+        var signingKey = CreateTenantSigningKey();
+        var profile = new TokenIssuanceProfile
+        {
+            Issuer = "issuer",
+            Audience = "FinAi.Api",
+            Audiences = ["FinAi.Api", "Lightcode.Payment.Api"],
+            AccessTokenExpirationMinutes = 60
+        };
+
+        var issued = issuer.CreateAccessToken("client-1", "tenant-1", profile, signingKey);
+
+        var token = new JwtSecurityTokenHandler().ReadJwtToken(issued.AccessToken);
+        token.Audiences.Should().BeEquivalentTo(["FinAi.Api", "Lightcode.Payment.Api"]);
+    }
+
+    [Fact]
     public void CreatePlatformAdminAccessToken_can_issue_multiple_tokens()
     {
         var issuer = CreateIssuer();
